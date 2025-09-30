@@ -1,0 +1,40 @@
+# محیط مجازی پایتون
+venv/
+.env/
+.venv/
+
+# فایل‌های اجرایی پایتون
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# دیتابیس
+*.db
+*.sqlite3
+*.sqlite
+
+# فایل‌های لاگ
+*.log
+logs/
+
+# فایل‌های موقت
+*.tmp
+*.temp
+.cache/
+
+# VS Code
+.vscode/
+.idea/
+
+# سیستم عامل
+.DS_Store
+Thumbs.db
+
+# فایل‌های محیط
+.env
+*.env.local
+
+# فایل‌های تولید شده
+instance/

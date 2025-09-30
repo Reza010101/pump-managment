@@ -1,0 +1,42 @@
+{% extends "base_dashboard.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">ایجاد کاربر جدید</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">نام کاربری</label>
+                        <input type="text" class="form-control" name="username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">نام کامل</label>
+                        <input type="text" class="form-control" name="full_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">پسورد</label>
+                        <input type="password" class="form-control" name="password" required minlength="4">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">نقش</label>
+                        <select class="form-select" name="role" required>
+                            <option value="user">کاربر عادی</option>
+                            <option value="admin">مدیر سیستم</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">ایجاد کاربر</button>
+                    <a href="/admin/users" class="btn btn-secondary w-100 mt-2">بازگشت</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
