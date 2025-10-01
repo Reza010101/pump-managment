@@ -292,13 +292,13 @@ def delete_user(user_id):
 if __name__ == '__main__':
     # مطمئن شو دیتابیس وجود دارد
     if not os.path.exists('pump_management.db'):
-        print("⚠️ دیتابیس وجود ندارد! لطفا اول database.py را اجرا کنید.")
+        print("⚠️database dont exist , please run database.py")
         exit(1)
     
-    print("🚀 سرور در حال اجرا...")
-    print("📧 برای ورود: http://localhost:5000/login")
-    print("   کاربران:")
-    print("   - admin / 1234 (مدیر)")
-    print("   - user1 / 1234 (کاربر)")
+    print("🚀 server is running...")
+    print("📧 for enter: http://localhost:5000/login")
+    print("   users:")
+    print("   - admin / 1234 (admin)")
+    print("   - user1 / 1234 (user)")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
