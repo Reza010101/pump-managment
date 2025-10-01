@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, redirect, session, jsonify, f
 import sqlite3
 from datetime import datetime, timedelta
 import os
+from date_converter import gregorian_to_jalali, jalali_to_gregorian
+
 
 app = Flask(__name__)
 app.secret_key = 'pump_management_secret_key_2024'
@@ -58,7 +60,17 @@ def dashboard():
     
     conn.close()
     
-    return render_template('dashboard.html', pumps=pumps)
+    # تبدیل تاریخ‌ها به شمسی 
+    pumps_with_jalali = []
+    for pump in pumps:
+        pump_dict = dict(pump)
+        if pump['last_change']:
+            pump_dict['last_change_jalali'] = gregorian_to_jalali(pump['last_change'])
+        else:
+            pump_dict['last_change_jalali'] = 'بدون تاریخچه'
+        pumps_with_jalali.append(pump_dict)
+    
+    return render_template('dashboard.html', pumps=pumps_with_jalali)  # 🆕 pumps_with_jalali
 
 # خروج
 @app.route('/logout')
@@ -77,7 +89,7 @@ def change_pump_status_detailed():
     action = data.get('action')
     reason = data.get('reason')
     notes = data.get('notes', '')
-    action_date = data.get('action_date')
+    action_date_jalali = data.get('action_date_jalali')  # تاریخ شمسی از کاربر
     action_time = data.get('action_time')
     manual_time = data.get('manual_time', False)
     
@@ -110,11 +122,13 @@ def change_pump_status_detailed():
             })
         
         # آماده کردن timestamp
-        if manual_time and action_date and action_time:
-            action_timestamp = f"{action_date} {action_time}:00"
+        if manual_time and action_date_jalali and action_time:
+        # تبدیل شمسی به میلادی
+            jalali_datetime_str = f"{action_date_jalali} {action_time}:00"
+            action_timestamp = jalali_to_gregorian(jalali_datetime_str)  # از date_converter استفاده میکنه
         else:
             action_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
+
         # آپدیت وضعیت پمپ
         conn.execute(
             'UPDATE pumps SET status = ?, last_change = ? WHERE id = ?',

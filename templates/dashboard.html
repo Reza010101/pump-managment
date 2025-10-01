@@ -147,7 +147,7 @@
                             <small class="text-muted">
                                 <i class="bi bi-clock"></i>
                                 آخرین تغییر: 
-                                {{ pump.last_change[:16] if pump.last_change else 'بدون تاریخچه' }}
+                                {{ pump.last_change_jalali[:16] if pump.last_change_jalali else 'بدون تاریخچه' }}
                             </small>
                         </div>
 
@@ -234,7 +234,7 @@
                         <div id="manualTimeSection" class="row mb-3" style="display: none;">
                             <div class="col-md-6">
                                 <label class="form-label">تاریخ</label>
-                                <input type="date" class="form-control" id="actionDate">
+                                <input type="text" class="form-control" id="actionDateJalali" placeholder="1402/10/25" pattern="\d{4}/\d{2}/\d{2}">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">ساعت</label>
@@ -299,7 +299,7 @@
             
             // تنظیم تاریخ و زمان پیشفرض
             const now = new Date();
-            document.getElementById('actionDate').value = now.toISOString().split('T')[0];
+            document.getElementById('actionDateJalali').value = ''; // خالی بذار
             document.getElementById('actionTime').value = now.toTimeString().split(' ')[0].substring(0, 5);
             
             // متن خلاصه عمل
@@ -321,7 +321,7 @@
             const action = document.getElementById('selectedAction').value;
             const reason = document.getElementById('reason').value;
             const notes = document.getElementById('notes').value;
-            const actionDate = document.getElementById('actionDate').value;
+            const actionDateJalali = document.getElementById('actionDateJalali').value;
             const actionTime = document.getElementById('actionTime').value;
             
             // اعتبارسنجی
@@ -340,8 +340,8 @@
             
             // اگر مدیر هست و تاریخ/زمان وارد کرده
             const isAdmin = '{{ session.role }}' === 'admin';
-            if (isAdmin && actionDate && actionTime) {
-                formData.action_date = actionDate;
+            if (isAdmin && actionDateJalali  && actionTime) {
+                formData.action_date_jalali = actionDateJalali; // به بک‌اند می‌فرستیم که تبدیل کنه
                 formData.action_time = actionTime;
                 formData.manual_time = true;
             }
