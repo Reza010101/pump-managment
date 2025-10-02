@@ -63,6 +63,9 @@
                         <li><a class="dropdown-item" href="/change-password">
                             <i class="bi bi-key"></i> تغییر پسورد
                         </a></li>
+                        <li><a class="dropdown-item" href="/reports">
+                        <i class="bi bi-graph-up"></i> گزارشات
+                        </a></li>
                         {% if session.role == 'admin' %}
                         <li><a class="dropdown-item" href="/admin/users">
                             <i class="bi bi-people"></i> مدیریت کاربران
@@ -90,18 +93,7 @@
                         وضعیت آنلاین پمپ‌ها
                     </h4>
                 </div>
-                <div class="col-md-6 text-center">
-                    <div class="btn-group">
-                        <a href="/report/history" class="btn btn-outline-primary">
-                            <i class="bi bi-clock-history"></i>
-                            گزارش تاریخی
-                        </a>
-                        <a href="/report/hours" class="btn btn-outline-success">
-                            <i class="bi bi-graph-up"></i>
-                            ساعات کارکرد
-                        </a>
-                    </div>
-                </div>
+                
             </div>
         </div>
     </div>

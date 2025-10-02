@@ -386,16 +386,12 @@ def import_history():
                         action_time_jalali = f"{date_jalali} {time_jalali}"
                     
                     # کامل کردن فرمت زمان
-                    if ' ' in action_time_jalali:
                         date_part, time_part = action_time_jalali.split(' ', 1)
                         if ':' not in time_part:
                             time_part += ':00'
                         elif time_part.count(':') == 1:
                             time_part += ':00'
                         action_time_jalali = f"{date_part} {time_part}"
-                    else:
-                        # اگر فقط تاریخ داریم
-                        action_time_jalali += " 00:00:00"
                     
                     # تبدیل تاریخ شمسی به میلادی
                     try:
@@ -520,6 +516,13 @@ def update_pump_current_status():
     
     conn.commit()
     conn.close()
+@app.route('/reports')
+def reports_dashboard():
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    return render_template('reports.html')
+
 if __name__ == '__main__':
     # مطمئن شو دیتابیس وجود دارد
     if not os.path.exists('pump_management.db'):

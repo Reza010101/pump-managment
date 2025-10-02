@@ -1,0 +1,116 @@
+{% extends "base_dashboard.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">📊 سیستم گزارش‌گیری</h4>
+            </div>
+            <div class="card-body">
+                <!-- گزارش ۱: وضعیت در زمان خاص -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">⏰ گزارش وضعیت در زمان خاص</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>مشاهده وضعیت تمام پمپ‌ها در یک تاریخ و ساعت مشخص از گذشته</p>
+                        <form action="/report/status-at-time" method="GET" class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">تاریخ (شمسی)</label>
+                                <input type="text" class="form-control" name="date" placeholder="1402/10/25" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">ساعت</label>
+                                <input type="time" class="form-control" name="time" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">نوع نمایش</label>
+                                <select class="form-select" name="display_type">
+                                    <option value="off">پمپ‌های خاموش</option>
+                                    <option value="on">پمپ‌های روشن</option>
+                                    <option value="all">همه پمپ‌ها</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">مشاهده گزارش</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- گزارش ۲: ساعات کارکرد -->
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">🕒 گزارش ساعات کارکرد</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>محاسبه ساعات کارکرد پمپ‌ها در بازه زمانی مشخص</p>
+                        <form action="/report/daily-hours" method="GET" class="row g-3" id="hoursReportForm">
+                            <div class="col-md-4" id="dailyDateField">
+                                <label class="form-label">تاریخ (شمسی)</label>
+                                <input type="text" class="form-control" name="date" placeholder="1402/10/25" required>
+                            </div>
+                            <div class="col-md-4" id="monthlyDateField" style="display: none;">
+                                <label class="form-label">ماه و سال (شمسی)</label>
+                                <input type="text" class="form-control" name="month" placeholder="1402/10" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">نوع گزارش</label>
+                                <select class="form-select" name="report_type" id="reportType">
+                                    <option value="daily">روزانه</option>
+                                    <option value="monthly">ماهانه</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-success w-100">مشاهده گزارش</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- گزارش ۳: تاریخچه تغییرات -->
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0">📈 گزارش تاریخچه تغییرات</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>مشاهده تاریخچه کامل تغییرات وضعیت پمپ‌ها</p>
+                        <form action="/report/full-history" method="GET" class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">از تاریخ</label>
+                                <input type="text" class="form-control" name="from_date" placeholder="1402/10/01">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">تا تاریخ</label>
+                                <input type="text" class="form-control" name="to_date" placeholder="1402/10/30">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">پمپ مورد نظر</label>
+                                <select class="form-select" name="pump_id">
+                                    <option value="all">همه پمپ‌ها</option>
+                                    {% for i in range(1, 59) %}
+                                    <option value="{{ i }}">پمپ {{ i }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-info w-100">مشاهده گزارش</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('reportType').addEventListener('change', function() {
+    const isMonthly = this.value === 'monthly';
+    document.getElementById('dailyDateField').style.display = isMonthly ? 'none' : 'block';
+    document.getElementById('monthlyDateField').style.display = isMonthly ? 'block' : 'none';
+});
+</script>
+{% endblock %}
