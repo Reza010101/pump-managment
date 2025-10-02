@@ -332,7 +332,7 @@ def import_history():
             df = pd.read_excel(file)
             
             # بررسی ستون‌های ضروری
-            required_columns = ['Pump_Number', 'Action', 'Reason']
+            required_columns = ['Pump_Number', 'Action', 'Reason', 'Date_Jalali', 'Time_Jalali']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
@@ -372,8 +372,12 @@ def import_history():
                     else:
                         # حالت جدید: تاریخ و زمان جدا
                         date_jalali = str(row['Date_Jalali']).strip() if 'Date_Jalali' in df.columns and pd.notna(row['Date_Jalali']) else ''
-                        time_jalali = str(row['Time_Jalali']).strip() if 'Time_Jalali' in df.columns and pd.notna(row['Time_Jalali']) else '00:00'
+                        time_jalali = str(row['Time_Jalali']).strip() if 'Time_Jalali' in df.columns and pd.notna(row['Time_Jalali']) else ''
                         
+                        if not time_jalali:
+                            error_messages.append(f'خط {index+2}: زمان الزامی است')
+                            error_count += 1
+                            continue
                         if not date_jalali:
                             error_messages.append(f'خط {index+2}: تاریخ خالی است')
                             error_count += 1
