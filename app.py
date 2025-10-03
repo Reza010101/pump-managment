@@ -87,12 +87,13 @@ def dashboard():
     
     conn = get_db_connection()
     
-    # دریافت وضعیت پمپ‌ها
+    # 🔽 این کوئری رو تغییر بده 🔽
     pumps = conn.execute('''
         SELECT p.*, 
                (SELECT action FROM pump_history 
                 WHERE pump_id = p.id 
-                ORDER BY action_time DESC LIMIT 1) as last_action
+                ORDER BY action_time DESC LIMIT 1) as last_action,
+               (SELECT COUNT(*) FROM pump_history WHERE pump_id = p.id) as has_history
         FROM pumps p 
         ORDER BY p.pump_number
     ''').fetchall()
@@ -103,14 +104,16 @@ def dashboard():
     pumps_with_jalali = []
     for pump in pumps:
         pump_dict = dict(pump)
+        # 🔽 این خط رو اضافه کن 🔽
+        pump_dict['has_history'] = pump['has_history']
+        
         if pump['last_change']:
             pump_dict['last_change_jalali'] = gregorian_to_jalali(pump['last_change'])
         else:
             pump_dict['last_change_jalali'] = 'بدون تاریخچه'
         pumps_with_jalali.append(pump_dict)
     
-    return render_template('dashboard.html', pumps=pumps_with_jalali)  # 🆕 pumps_with_jalali
-
+    return render_template('dashboard.html', pumps=pumps_with_jalali)
 # خروج
 @app.route('/logout')
 def logout():
@@ -147,28 +150,28 @@ def change_pump_status_detailed():
         new_status = True if action == 'on' else False
         
         # جلوگیری از تغییر تکراری
-        if current_status == new_status:
+        if current_status == new_status and get_last_pump_event_time(pump_id):
             return jsonify({
                 'success': False, 
                 'error': f'پمپ در حال حاضر {"روشن" if current_status else "خاموش"} است'
             })
                       
         # آماده کردن timestamp
+        action_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # پیشفرض زمان حال
+
         if manual_time and action_date_jalali and action_time:
-        # تبدیل شمسی به میلادی
+            # تبدیل شمسی به میلادی
             jalali_datetime_str = f"{action_date_jalali} {action_time}:00"
-            action_timestamp = jalali_to_gregorian(jalali_datetime_str)  # از date_converter استفاده میکنه
-        
-        # اعتبارسنجی تاریخ برای همه کاربران 
-        last_event_time = get_last_pump_event_time(pump_id)
-        if last_event_time and action_timestamp <= last_event_time:
-            last_event_jalali = gregorian_to_jalali(last_event_time)
-            return jsonify({
-                'success': False, 
-                'error': f'تاریخ انتخاب شده باید بعد از آخرین ثبت ({last_event_jalali[:16]}) باشد'
-            })
-        else:
-            action_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            action_timestamp = jalali_to_gregorian(jalali_datetime_str)  # زمان دستی
+            
+            # اعتبارسنجی تاریخ برای پمپ‌های با تاریخچه
+            last_event_time = get_last_pump_event_time(pump_id)
+            if last_event_time and action_timestamp <= last_event_time:
+                last_event_jalali = gregorian_to_jalali(last_event_time)
+                return jsonify({
+                    'success': False, 
+                    'error': f'تاریخ انتخاب شده باید بعد از آخرین ثبت ({last_event_jalali[:16]}) باشد'
+                })
 
         # آپدیت وضعیت پمپ
         conn.execute(
@@ -415,7 +418,7 @@ def import_history():
                     })
                     
                 except Exception as e:
-                    error_messages.append(f'خط {index+2}: خطا در پردازش داده - {str(e)}')
+                    error_messages.append(f'خط {index+2}: پمپ {pump_num} - خطا در پردازش داده ({str(e)})')
                     error_count += 1
             
             # ۲. پردازش هر پمپ به صورت جداگانه
@@ -430,24 +433,22 @@ def import_history():
                     # مرتب‌سازی بر اساس زمان
                     all_events.sort(key=lambda x: x['action_time'])
                     
-                    # ۳. اعتبارسنجی timeline برای هر پمپ
+                    # ۳. اعتبارسنجی timeline برای هر پمپ - کل تایم‌لاین
                     timeline_errors = []
                     for i in range(1, len(all_events)):
                         prev_action = all_events[i-1]['action']
                         current_action = all_events[i]['action']
                         
                         if prev_action == current_action:
-                            # پیدا کردن اینکه کدام رویداد جدید باعث خطا شده
+                            # ⛔ هرگونه مغایرت در کل تایم‌لاین خطاست
                             error_event = all_events[i]
                             prev_event = all_events[i-1]
                             
-                            # فقط اگر خطا مربوط به داده جدید باشد گزارش بده
-                            if error_event.get('source') == 'new':
-                                timeline_errors.append({
-                                    'row_index': error_event['row_index'],
-                                    'message': f'پمپ {pump_num}: {current_action} در {error_event["jalali_time"]} - مغایرت منطقی (پمپ از {prev_event["jalali_time"]} در حالت {prev_action} بوده)'
-                                })
-                    
+                            timeline_errors.append({
+                                'row_index': error_event.get('row_index', 'موجود'),
+                                'message': f'پمپ {pump_num}: {current_action} در {error_event["jalali_time"]} - مغایرت منطقی (پمپ از {prev_event["jalali_time"]} در حالت {prev_action} بوده)'
+                            })
+                                                
                     if timeline_errors:
                         error_count += len(timeline_errors)
                         for error in timeline_errors:
@@ -462,30 +463,21 @@ def import_history():
                                 ).fetchone()
                                 
                                 if pump:
-                                    # بررسی عدم تکراری بودن
-                                    existing = conn.execute(
-                                        'SELECT id FROM pump_history WHERE pump_id = ? AND action_time = ? AND action = ?',
-                                        (pump['id'], event['action_time'], event['action'])
-                                    ).fetchone()
-                                    
-                                    if not existing:
-                                        conn.execute(
-                                            '''INSERT INTO pump_history 
-                                               (pump_id, user_id, action, action_time, reason, notes, manual_time) 
-                                               VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                                            (pump['id'], session['user_id'], event['action'], 
-                                             event['action_time'], event['reason'], event['notes'], True)
-                                        )
-                                        success_count += 1
-                                    else:
-                                        error_messages.append(f'خط {event["row_index"]}: رکورد تکراری')
-                                        error_count += 1
+                                    #  عدم بررسی تکراری بودن
+                                    conn.execute(
+                                        '''INSERT INTO pump_history 
+                                        (pump_id, user_id, action, action_time, reason, notes, manual_time) 
+                                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                                        (pump['id'], session['user_id'], event['action'], 
+                                        event['action_time'], event['reason'], event['notes'], True)
+                                    )
+                                    success_count += 1
                                 else:
                                     error_messages.append(f'خط {event["row_index"]}: پمپ با شماره {pump_num} یافت نشد')
                                     error_count += 1
                                 
                             except Exception as e:
-                                error_messages.append(f'خط {event["row_index"]}: خطا در ذخیره سازی - {str(e)}')
+                                error_messages.append(f'خط {event["row_index"]}: پمپ {pump_num} - خطا در ذخیره‌سازی ({str(e)})')
                                 error_count += 1
                 
                 except Exception as e:
