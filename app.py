@@ -115,19 +115,21 @@ def change_pump_status_detailed():
                 'success': False, 
                 'error': f'پمپ در حال حاضر {"روشن" if current_status else "خاموش"} است'
             })
-        
-        # بررسی دسترسی کاربر برای تاریخ دستی
-        if manual_time and session['role'] != 'admin':
-            return jsonify({
-                'success': False, 
-                'error': 'شما مجوز ثبت تاریخ دستی ندارید'
-            })
-        
+                      
         # آماده کردن timestamp
         if manual_time and action_date_jalali and action_time:
         # تبدیل شمسی به میلادی
             jalali_datetime_str = f"{action_date_jalali} {action_time}:00"
             action_timestamp = jalali_to_gregorian(jalali_datetime_str)  # از date_converter استفاده میکنه
+        
+        # اعتبارسنجی تاریخ برای همه کاربران 
+        last_event_time = get_last_pump_event_time(pump_id)
+        if last_event_time and action_timestamp <= last_event_time:
+            last_event_jalali = gregorian_to_jalali(last_event_time)
+            return jsonify({
+                'success': False, 
+                'error': f'تاریخ انتخاب شده باید بعد از آخرین ثبت ({last_event_jalali[:16]}) باشد'
+            })
         else:
             action_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -634,7 +636,16 @@ def export_status_at_time():
         download_name=f'status_report_{date_jalali}_{time}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-
+def get_last_pump_event_time(pump_id):
+    """آخرین زمان ثبت شده برای پمپ را برمی‌گرداند"""
+    conn = get_db_connection()
+    last_event = conn.execute(
+        'SELECT action_time FROM pump_history WHERE pump_id = ? ORDER BY action_time DESC LIMIT 1',
+        (pump_id,)
+    ).fetchone()
+    conn.close()
+    
+    return last_event['action_time'] if last_event else None
 if __name__ == '__main__':
     # مطمئن شو دیتابیس وجود دارد
     if not os.path.exists('pump_management.db'):

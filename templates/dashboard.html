@@ -226,7 +226,7 @@
                         </div>
 
                         <!-- فقط برای مدیران: تاریخ و زمان دستی -->
-                        <div id="manualTimeSection" class="row mb-3" style="display: none;">
+                        <div id="manualTimeSection" class="row mb-3" >
                             <div class="col-md-6">
                                 <label class="form-label">تاریخ</label>
                                 <input type="text" class="form-control" id="actionDateJalali" placeholder="1402/10/25" pattern="\d{4}/\d{2}/\d{2}">
@@ -288,10 +288,6 @@
             document.getElementById('pumpNumber').value = pumpNumber;
             document.getElementById('pumpName').value = pumpName;
             
-            // نمایش بخش تاریخ/زمان برای مدیران
-            const isAdmin = '{{ session.role }}' === 'admin';
-            document.getElementById('manualTimeSection').style.display = isAdmin ? 'block' : 'none';
-            
             // تنظیم تاریخ و زمان پیشفرض
             const now = new Date();
             document.getElementById('actionDateJalali').value = ''; // خالی بذار
@@ -333,9 +329,9 @@
                 notes: notes
             };
             
-            // اگر مدیر هست و تاریخ/زمان وارد کرده
+            // اگر تاریخ/زمان وارد کرده (برای همه کاربران)
             const isAdmin = '{{ session.role }}' === 'admin';
-            if (isAdmin && actionDateJalali  && actionTime) {
+            if (actionDateJalali  && actionTime) {
                 formData.action_date_jalali = actionDateJalali; // به بک‌اند می‌فرستیم که تبدیل کنه
                 formData.action_time = actionTime;
                 formData.manual_time = true;
