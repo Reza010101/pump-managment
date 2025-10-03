@@ -1,0 +1,85 @@
+{% extends "base_dashboard.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">⏰ گزارش وضعیت در زمان خاص</h4>
+                {% if results %}
+                <a href="/report/status-at-time/export?date={{ date_jalali }}&time={{ time }}&display_type={{ display_type }}" 
+                   class="btn btn-success btn-sm">
+                   <i class="bi bi-download"></i> دانلود اکسل
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <!-- فرم فیلترها -->
+                <form method="GET" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label">تاریخ (شمسی)</label>
+                        <input type="text" class="form-control" name="date" value="{{ date_jalali }}" placeholder="1402/10/25" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">ساعت</label>
+                        <input type="time" class="form-control" name="time" value="{{ time }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">نوع نمایش</label>
+                        <select class="form-select" name="display_type">
+                            <option value="off" {% if display_type == 'off' %}selected{% endif %}>پمپ‌های خاموش</option>
+                            <option value="on" {% if display_type == 'on' %}selected{% endif %}>پمپ‌های روشن</option>
+                            <option value="all" {% if display_type == 'all' %}selected{% endif %}>همه پمپ‌ها</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">مشاهده گزارش</button>
+                    </div>
+                </form>
+
+                <!-- نتایج -->
+                {% if results %}
+                <div class="alert alert-info">
+                    <strong>تاریخ:</strong> {{ date_jalali }} - <strong>ساعت:</strong> {{ time }}
+                    <span class="badge bg-primary ms-2">{{ results|length }} پمپ</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>شماره پمپ</th>
+                                <th>نام</th>
+                                <th>وضعیت</th>
+                                <th>تاریخ تغییر</th>
+                                <th>علت</th>
+                                <th>توضیحات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in results %}
+                            <tr>
+                                <td>{{ item.pump_number }}</td>
+                                <td>{{ item.name }}</td>
+                                <td>
+                                    <span class="badge {% if item.status == 'ON' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ 'روشن' if item.status == 'ON' else 'خاموش' }}
+                                    </span>
+                                </td>
+                                <td>{{ item.last_change[:16] }}</td>
+                                <td>{{ item.reason }}</td>
+                                <td>{{ item.notes }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif date_jalali %}
+                <div class="alert alert-warning">هیچ داده‌ای برای نمایش وجود ندارد</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

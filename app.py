@@ -523,6 +523,118 @@ def reports_dashboard():
     
     return render_template('reports.html')
 
+@app.route('/report/status-at-time')
+def status_at_time_report():
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    # دریافت پارامترها
+    date_jalali = request.args.get('date')
+    time = request.args.get('time')
+    display_type = request.args.get('display_type', 'off')
+    
+    if not date_jalali or not time:
+        return render_template('status_at_time_report.html')
+    
+    # منطق محاسباتی
+    target_datetime_jalali = f"{date_jalali} {time}:00"
+    target_datetime_gregorian = jalali_to_gregorian(target_datetime_jalali)
+
+    conn = get_db_connection()
+    results = []
+
+    for pump_id in range(1, 59):
+        last_event = conn.execute('''
+            SELECT ph.action, ph.action_time, ph.reason, ph.notes, p.pump_number, p.name
+            FROM pump_history ph
+            JOIN pumps p ON ph.pump_id = p.id
+            WHERE ph.pump_id = ? AND ph.action_time <= ?
+            ORDER BY ph.action_time DESC 
+            LIMIT 1
+        ''', (pump_id, target_datetime_gregorian)).fetchone()
+        
+        if last_event:
+            status = 'ON' if last_event['action'] == 'ON' else 'OFF'
+            last_change_jalali = gregorian_to_jalali(last_event['action_time'])
+            
+            if display_type == 'all' or (display_type == 'on' and status == 'ON') or (display_type == 'off' and status == 'OFF'):
+                results.append({
+                    'pump_number': last_event['pump_number'],
+                    'name': last_event['name'],
+                    'status': status,
+                    'last_change': last_change_jalali,
+                    'reason': last_event['reason'],
+                    'notes': last_event['notes']
+                })
+
+    conn.close()
+    
+    return render_template('status_at_time_report.html', 
+                         results=results, 
+                         date_jalali=date_jalali, 
+                         time=time, 
+                         display_type=display_type)
+
+@app.route('/report/status-at-time/export')
+def export_status_at_time():
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    # دریافت پارامترها
+    date_jalali = request.args.get('date')
+    time = request.args.get('time')
+    display_type = request.args.get('display_type', 'off')
+    
+    # تولید فایل اکسل
+    target_datetime_jalali = f"{date_jalali} {time}:00"
+    target_datetime_gregorian = jalali_to_gregorian(target_datetime_jalali)
+
+    conn = get_db_connection()
+    results = []
+
+    for pump_id in range(1, 59):
+        last_event = conn.execute('''
+            SELECT ph.action, ph.action_time, ph.reason, ph.notes, p.pump_number, p.name
+            FROM pump_history ph
+            JOIN pumps p ON ph.pump_id = p.id
+            WHERE ph.pump_id = ? AND ph.action_time <= ?
+            ORDER BY ph.action_time DESC 
+            LIMIT 1
+        ''', (pump_id, target_datetime_gregorian)).fetchone()
+        
+        if last_event:
+            status = 'ON' if last_event['action'] == 'ON' else 'OFF'
+            last_change_jalali = gregorian_to_jalali(last_event['action_time'])
+            
+            if display_type == 'all' or (display_type == 'on' and status == 'ON') or (display_type == 'off' and status == 'OFF'):
+                results.append({
+                    'pump_number': last_event['pump_number'],
+                    'name': last_event['name'],
+                    'status': status,
+                    'last_change': last_change_jalali,
+                    'reason': last_event['reason'],
+                    'notes': last_event['notes']
+                })
+
+    conn.close()
+    
+    # ایجاد DataFrame
+    df = pd.DataFrame(results)
+    
+    # ایجاد فایل Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='گزارش وضعیت', index=False)
+    
+    output.seek(0)
+    
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f'status_report_{date_jalali}_{time}.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
 if __name__ == '__main__':
     # مطمئن شو دیتابیس وجود دارد
     if not os.path.exists('pump_management.db'):
