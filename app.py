@@ -5,6 +5,7 @@ import os
 from date_converter import gregorian_to_jalali, jalali_to_gregorian
 import pandas as pd
 import io
+from datetime import datetime
 
 
 app = Flask(__name__)
@@ -53,6 +54,145 @@ def get_pump_history_from_db(pump_number):
     
     return events
 
+def get_last_event_before(pump_id, datetime_obj):
+    """پیدا کردن آخرین رویداد قبل از زمان مشخص"""
+    conn = get_db_connection()
+    event = conn.execute('''
+        SELECT action, action_time 
+        FROM pump_history 
+        WHERE pump_id = ? AND action_time < ?
+        ORDER BY action_time DESC 
+        LIMIT 1
+    ''', (pump_id, datetime_obj.strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
+    conn.close()
+    
+    if event:
+        return {
+            'action': event['action'],
+            'action_time': datetime.strptime(event['action_time'], '%Y-%m-%d %H:%M:%S')
+        }
+    return None
+
+def get_pump_events_in_range(pump_id, start_time, end_time):
+    """دریافت رویدادهای یک پمپ در بازه زمانی مشخص"""
+    conn = get_db_connection()
+    events = conn.execute('''
+        SELECT action, action_time 
+        FROM pump_history 
+        WHERE pump_id = ? AND action_time BETWEEN ? AND ?
+        ORDER BY action_time
+    ''', (pump_id, start_time.strftime('%Y-%m-%d %H:%M:%S'), end_time.strftime('%Y-%m-%d %H:%M:%S'))).fetchall()
+    conn.close()
+    
+    result = []
+    for event in events:
+        result.append({
+            'action': event['action'],
+            'action_time': datetime.strptime(event['action_time'], '%Y-%m-%d %H:%M:%S')
+        })
+    return result
+
+def calculate_daily_operating_hours(pump_id, target_date_jalali):
+    """محاسبه ساعات کارکرد یک پمپ در یک روز خاص"""
+    try:
+        print(f"🎯 شروع محاسبه برای پمپ {pump_id} در تاریخ {target_date_jalali}")
+        
+        # تبدیل تاریخ شمسی به میلادی
+        start_of_day_str = jalali_to_gregorian(f"{target_date_jalali} 00:00:00")
+        end_of_day_str = jalali_to_gregorian(f"{target_date_jalali} 23:59:59")
+        
+        # تبدیل string به datetime
+        start_of_day = datetime.strptime(start_of_day_str, '%Y-%m-%d %H:%M:%S')
+        end_of_day = datetime.strptime(end_of_day_str, '%Y-%m-%d %H:%M:%S')
+        
+        print(f"   📅 بازه جستجو: {start_of_day} تا {end_of_day}")
+        
+        # ۱. آخرین رویداد قبل از روز
+        last_event_before = get_last_event_before(pump_id, start_of_day)
+        print(f"   🔍 آخرین رویداد قبل: {last_event_before}")
+        
+        # ۲. رویدادهای درون روز
+        days_events = get_pump_events_in_range(pump_id, start_of_day, end_of_day)
+        print(f"   📋 رویدادهای روز: {len(days_events)} مورد")
+        for event in days_events:
+            print(f"      - {event['action']} در {event['action_time']}")
+        
+        # ۳. تعیین وضعیت اولیه
+        if last_event_before:
+            current_status = last_event_before['action']
+        else:
+            current_status = 'OFF'
+        print(f"   🏁 وضعیت اولیه: {current_status}")
+        
+        # ۴. اگر هیچ رویدادی در روز نیست
+        if not days_events:
+            result = 24.0 if current_status == 'ON' else 0.0
+            print(f"   ⏰ نتیجه نهایی (بدون رویداد): {result} ساعت")
+            return result
+        
+        # ۵. محاسبه با رویدادهای روز
+        total_seconds = 0
+        current_time = start_of_day
+        
+        # اضافه کردن رویداد پایان روز به عنوان رویداد مجازی
+        all_events = days_events + [{'action_time': end_of_day, 'action': 'END'}]
+        
+        print(f"   🧮 شروع محاسبه بازه‌ها:")
+        for i, event in enumerate(all_events):
+            if current_status == 'ON':
+                time_diff = (event['action_time'] - current_time).total_seconds()
+                total_seconds += time_diff
+                print(f"      بازه {i}: {current_time} تا {event['action_time']} = {time_diff/3600:.2f} ساعت")
+            
+            if event['action'] != 'END':
+                current_status = event['action']
+                current_time = event['action_time']
+        
+        hours = total_seconds / 3600
+        final_result = round(hours, 2)
+        print(f"   ✅ نتیجه نهایی: {final_result} ساعت")
+        return final_result
+        
+    except Exception as e:
+        print(f"❌ خطا در محاسبه ساعات کارکرد پمپ {pump_id}: {e}")
+        return 0.0
+    
+def calculate_monthly_operating_hours(pump_id, target_month_jalali):
+    """
+    محاسبه ساعات کارکرد یک پمپ در یک ماه خاص
+    """
+    try:
+        print(f"🎯 شروع محاسبه ماهانه برای پمپ {pump_id} در ماه {target_month_jalali}")
+        
+        # تبدیل ماه شمسی به میلادی
+        year, month = map(int, target_month_jalali.split('/'))
+        
+        total_hours = 0
+        
+        # محاسبه برای هر روز ماه (۱ تا ۳۱)
+        for day in range(1, 32):
+            try:
+                date_jalali = f"{year}/{month:02d}/{day:02d}"
+                print(f"   📅 محاسبه روز {day}: {date_jalali}")
+                
+                daily_hours = calculate_daily_operating_hours(pump_id, date_jalali)
+                total_hours += daily_hours
+                
+                print(f"   ✅ روز {day}: {daily_hours} ساعت - مجموع: {total_hours} ساعت")
+                
+            except Exception as e:
+                # اگر تاریخ نامعتبر بود (مثلاً ۳۱ام بعضی ماه‌ها) ادامه بده
+                print(f"   ⏭️  روز {day}: خطا - {e}")
+                continue
+        
+        final_result = round(total_hours, 2)
+        print(f"🎉 نتیجه نهایی ماهانه پمپ {pump_id}: {final_result} ساعت")
+        return final_result
+        
+    except Exception as e:
+        print(f"❌ خطا در محاسبه ساعات کارکرد ماهانه پمپ {pump_id}: {e}")
+        return 0.0
+        
 # صفحه لاگین
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -210,13 +350,154 @@ def history_report():
     
     return "صفحه گزارش تاریخی - به زودی..."
 
-# صفحه ساعات کارکرد (موقت)
-@app.route('/report/hours')
-def hours_report():
+@app.route('/report/operating-hours')
+def operating_hours_report():
     if 'user_id' not in session:
         return redirect('/login')
     
-    return "صفحه ساعات کارکرد - به زودی..."
+    # دریافت پارامترها
+    date_jalali = request.args.get('date')
+    month_jalali = request.args.get('month')
+    report_type = request.args.get('report_type', 'daily')
+    
+    results = []
+    
+    if report_type == 'daily' and date_jalali:
+        # گزارش روزانه
+        for pump_id in range(1, 59):
+            pump_hours = calculate_daily_operating_hours(pump_id, date_jalali)
+            
+            # پیدا کردن اطلاعات پمپ
+            conn = get_db_connection()
+            pump = conn.execute(
+                'SELECT pump_number, name FROM pumps WHERE id = ?', (pump_id,)
+            ).fetchone()
+            conn.close()
+            
+            if pump:
+                results.append({
+                    'pump_number': pump['pump_number'],
+                    'name': pump['name'],
+                    'operating_hours': pump_hours
+                })
+                
+    elif report_type == 'monthly' and month_jalali:
+        # گزارش ماهانه
+        for pump_id in range(1, 59):
+            pump_hours = calculate_monthly_operating_hours(pump_id, month_jalali)
+            
+            # پیدا کردن اطلاعات پمپ
+            conn = get_db_connection()
+            pump = conn.execute(
+                'SELECT pump_number, name FROM pumps WHERE id = ?', (pump_id,)
+            ).fetchone()
+            conn.close()
+            
+            if pump:
+                results.append({
+                    'pump_number': pump['pump_number'],
+                    'name': pump['name'],
+                    'operating_hours': pump_hours
+                })
+    
+    # مرتب‌سازی بر اساس شماره پمپ
+    results.sort(key=lambda x: x['pump_number'])
+    
+    return render_template('operating_hours_report.html', 
+                         results=results,
+                         date_jalali=date_jalali,
+                         month_jalali=month_jalali,
+                         report_type=report_type)
+
+@app.route('/report/operating-hours/export')
+def export_operating_hours():
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    # دریافت پارامترها
+    date_jalali = request.args.get('date')
+    month_jalali = request.args.get('month')
+    report_type = request.args.get('report_type', 'daily')
+    
+    results = []
+    
+    if report_type == 'daily' and date_jalali:
+        # گزارش روزانه
+        period_title = f"گزارش ساعات کارکرد روزانه - تاریخ: {date_jalali}"
+        for pump_id in range(1, 59):
+            pump_hours = calculate_daily_operating_hours(pump_id, date_jalali)
+            
+            conn = get_db_connection()
+            pump = conn.execute(
+                'SELECT pump_number, name FROM pumps WHERE id = ?', (pump_id,)
+            ).fetchone()
+            conn.close()
+            
+            if pump:
+                results.append({
+                    'pump_number': pump['pump_number'],
+                    'name': pump['name'],
+                    'operating_hours': pump_hours
+                })
+                
+    elif report_type == 'monthly' and month_jalali:
+        # گزارش ماهانه
+        period_title = f"گزارش ساعات کارکرد ماهانه - ماه: {month_jalali}"
+        for pump_id in range(1, 59):
+            pump_hours = calculate_monthly_operating_hours(pump_id, month_jalali)
+            
+            conn = get_db_connection()
+            pump = conn.execute(
+                'SELECT pump_number, name FROM pumps WHERE id = ?', (pump_id,)
+            ).fetchone()
+            conn.close()
+            
+            if pump:
+                results.append({
+                    'pump_number': pump['pump_number'],
+                    'name': pump['name'],
+                    'operating_hours': pump_hours
+                })
+    
+    # مرتب‌سازی بر اساس شماره پمپ
+    results.sort(key=lambda x: x['pump_number'])
+    
+    # ایجاد DataFrame
+    df = pd.DataFrame(results)
+    
+    # ایجاد فایل Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='گزارش ساعات کارکرد', index=False)
+        
+        # دسترسی به workbook و worksheet برای فرمت‌بندی
+        workbook = writer.book
+        worksheet = writer.sheets['گزارش ساعات کارکرد']
+        
+        # اضافه کردن عنوان
+        worksheet['A1'] = period_title
+        worksheet.merge_cells('A1:C1')
+        
+        # تنظیم عرض ستون‌ها
+        worksheet.column_dimensions['A'].width = 15
+        worksheet.column_dimensions['B'].width = 25
+        worksheet.column_dimensions['C'].width = 20
+    
+    output.seek(0)
+    
+    # نام فایل
+    if report_type == 'daily':
+        filename = f'operating_hours_daily_{date_jalali.replace("/", "-")}.xlsx'
+    else:
+        filename = f'operating_hours_monthly_{month_jalali.replace("/", "-")}.xlsx'
+    
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
 # صفحه مدیریت کاربران
 @app.route('/admin/users')
 def manage_users():
