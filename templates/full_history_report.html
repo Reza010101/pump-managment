@@ -1,0 +1,94 @@
+{% extends "base_dashboard.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">📈 گزارش تاریخچه کامل تغییرات</h4>
+                {% if results %}
+                <a href="/report/full-history/export?from_date={{ from_date_jalali }}&to_date={{ to_date_jalali }}&pump_id={{ pump_id }}" 
+                   class="btn btn-success btn-sm">
+                   <i class="bi bi-download"></i> دانلود اکسل
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <!-- فرم فیلترها -->
+                <form method="GET" class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <label class="form-label">از تاریخ</label>
+                        <input type="text" class="form-control" name="from_date" value="{{ from_date_jalali }}" placeholder="1402/10/01">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تا تاریخ</label>
+                        <input type="text" class="form-control" name="to_date" value="{{ to_date_jalali }}" placeholder="1402/10/30">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">پمپ مورد نظر</label>
+                        <select class="form-select" name="pump_id">
+                            <option value="all" {% if pump_id == 'all' %}selected{% endif %}>همه پمپ‌ها</option>
+                            {% for i in range(1, 59) %}
+                            <option value="{{ i }}" {% if pump_id == i|string %}selected{% endif %}>پمپ {{ i }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-info w-100">مشاهده گزارش</button>
+                    </div>
+                </form>
+
+                <!-- نتایج -->
+                {% if results %}
+                <div class="alert alert-info">
+                    <strong>بازه زمانی:</strong> {{ from_date_jalali }} تا {{ to_date_jalali }}
+                    {% if pump_id != 'all' %}
+                    - <strong>پمپ:</strong> {{ pump_id }}
+                    {% endif %}
+                    <span class="badge bg-primary ms-2">{{ results|length }} رویداد</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>تاریخ</th>
+                                <th>ساعت</th>
+                                <th>پمپ</th>
+                                <th>وضعیت</th>
+                                <th>علت</th>
+                                <th>توضیحات</th>
+                                <th>کاربر</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in results %}
+                            <tr>
+                                <td>{{ item.action_date }}</td>
+                                <td>{{ item.action_time }}</td>
+                                <td>
+                                    <strong>پمپ {{ item.pump_number }}</strong>
+                                    <br><small class="text-muted">{{ item.name }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge {% if item.action == 'ON' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ item.action_persian }}
+                                    </span>
+                                </td>
+                                <td>{{ item.reason }}</td>
+                                <td>{{ item.notes or '-' }}</td>
+                                <td>{{ item.user_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% elif from_date_jalali %}
+                <div class="alert alert-warning">هیچ رویدادی در بازه زمانی انتخاب شده وجود ندارد</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

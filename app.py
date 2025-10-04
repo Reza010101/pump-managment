@@ -971,6 +971,180 @@ def get_last_pump_event_time(pump_id):
     
     return last_event['action_time'] if last_event else None
 
+@app.route('/report/full-history')
+def full_history_report():
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    # دریافت پارامترها
+    from_date_jalali = request.args.get('from_date')
+    to_date_jalali = request.args.get('to_date')
+    pump_id = request.args.get('pump_id', 'all')
+    
+    results = []
+    
+    if from_date_jalali and to_date_jalali:
+        # تبدیل تاریخ‌ها به میلادی
+        start_date = jalali_to_gregorian(f"{from_date_jalali} 00:00:00")
+        end_date = jalali_to_gregorian(f"{to_date_jalali} 23:59:59")
+        
+        conn = get_db_connection()
+        
+        if pump_id == 'all':
+            # همه پمپ‌ها
+            query = '''
+                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                       ph.reason, ph.notes, u.full_name as user_name
+                FROM pump_history ph
+                JOIN pumps p ON ph.pump_id = p.id
+                JOIN users u ON ph.user_id = u.id
+                WHERE ph.action_time BETWEEN ? AND ?
+                ORDER BY ph.action_time DESC
+            '''
+            params = (start_date, end_date)
+        else:
+            # پمپ خاص
+            query = '''
+                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                       ph.reason, ph.notes, u.full_name as user_name
+                FROM pump_history ph
+                JOIN pumps p ON ph.pump_id = p.id
+                JOIN users u ON ph.user_id = u.id
+                WHERE p.pump_number = ? AND ph.action_time BETWEEN ? AND ?
+                ORDER BY ph.action_time DESC
+            '''
+            params = (pump_id, start_date, end_date)
+        
+        results = conn.execute(query, params).fetchall()
+        conn.close()
+        
+        # تبدیل به لیست dictionary و جدا کردن تاریخ و ساعت
+        formatted_results = []
+        for row in results:
+            row_dict = dict(row)
+            
+            # جدا کردن تاریخ و ساعت
+            jalali_datetime = gregorian_to_jalali(row['action_time'])
+            jalali_parts = jalali_datetime.split(' ')
+            row_dict['action_date'] = jalali_parts[0]
+            row_dict['action_time'] = jalali_parts[1][:5] if len(jalali_parts) > 1 else '00:00'
+            row_dict['action_persian'] = 'روشن' if row['action'] == 'ON' else 'خاموش'
+            
+            formatted_results.append(row_dict)
+        
+        results = formatted_results
+    
+    return render_template('full_history_report.html',
+                         results=results,
+                         from_date_jalali=from_date_jalali,
+                         to_date_jalali=to_date_jalali,
+                         pump_id=pump_id)
+
+@app.route('/report/full-history/export')
+def export_full_history():
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    # دریافت پارامترها
+    from_date_jalali = request.args.get('from_date')
+    to_date_jalali = request.args.get('to_date')
+    pump_id = request.args.get('pump_id', 'all')
+    
+    if not from_date_jalali or not to_date_jalali:
+        flash('لطفا تاریخ شروع و پایان را انتخاب کنید', 'error')
+        return redirect('/report/full-history')
+    
+    try:
+        # تبدیل تاریخ‌ها به میلادی
+        start_date = jalali_to_gregorian(f"{from_date_jalali} 00:00:00")
+        end_date = jalali_to_gregorian(f"{to_date_jalali} 23:59:59")
+        
+        conn = get_db_connection()
+        
+        if pump_id == 'all':
+            query = '''
+                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                       ph.reason, ph.notes, u.full_name as user_name
+                FROM pump_history ph
+                JOIN pumps p ON ph.pump_id = p.id
+                JOIN users u ON ph.user_id = u.id
+                WHERE ph.action_time BETWEEN ? AND ?
+                ORDER BY ph.action_time DESC
+            '''
+            params = (start_date, end_date)
+        else:
+            query = '''
+                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                       ph.reason, ph.notes, u.full_name as user_name
+                FROM pump_history ph
+                JOIN pumps p ON ph.pump_id = p.id
+                JOIN users u ON ph.user_id = u.id
+                WHERE p.pump_number = ? AND ph.action_time BETWEEN ? AND ?
+                ORDER BY ph.action_time DESC
+            '''
+            params = (pump_id, start_date, end_date)
+        
+        results = conn.execute(query, params).fetchall()
+        conn.close()
+        
+        # آماده‌سازی داده برای اکسل
+        data = []
+        for row in results:
+            # جدا کردن تاریخ و ساعت از تاریخ شمسی
+            jalali_datetime = gregorian_to_jalali(row['action_time'])
+            jalali_parts = jalali_datetime.split(' ')
+            jalali_date = jalali_parts[0]
+            jalali_time = jalali_parts[1] if len(jalali_parts) > 1 else '00:00:00'
+            
+            data.append({
+                'شماره پمپ': row['pump_number'],
+                'نام پمپ': row['name'],
+                'وضعیت': 'روشن' if row['action'] == 'ON' else 'خاموش',
+                'تاریخ': jalali_date,
+                'ساعت': jalali_time[:5],  # فقط ساعت و دقیقه
+                'علت': row['reason'],
+                'توضیحات': row['notes'] or '',
+                'کاربر': row['user_name']
+            })
+        
+        if not data:
+            flash('هیچ داده‌ای برای دانلود وجود ندارد', 'warning')
+            return redirect('/report/full-history')
+        
+        df = pd.DataFrame(data)
+        
+        # ایجاد فایل Excel
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='تاریخچه تغییرات', index=False)
+            
+            # تنظیم عرض ستون‌ها
+            worksheet = writer.sheets['تاریخچه تغییرات']
+            worksheet.column_dimensions['A'].width = 12
+            worksheet.column_dimensions['B'].width = 20
+            worksheet.column_dimensions['C'].width = 10
+            worksheet.column_dimensions['D'].width = 12
+            worksheet.column_dimensions['E'].width = 8
+            worksheet.column_dimensions['F'].width = 20
+            worksheet.column_dimensions['G'].width = 25
+            worksheet.column_dimensions['H'].width = 15
+        
+        output.seek(0)
+        
+        filename = f'full_history_{from_date_jalali.replace("/", "-")}_to_{to_date_jalali.replace("/", "-")}.xlsx'
+        
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        
+    except Exception as e:
+        print(f"❌ خطا در تولید فایل اکسل: {e}")
+        flash(f'خطا در تولید فایل: {str(e)}', 'error')
+        return redirect('/report/full-history')
+    
 if __name__ == '__main__':
     # مطمئن شو دیتابیس وجود دارد
     if not os.path.exists('pump_management.db'):
