@@ -212,6 +212,7 @@ def login():
             session['username'] = user['username']
             session['full_name'] = user['full_name']
             session['role'] = user['role']
+            update_pump_current_status()  # آپدیت آخرین وضعیت پمپ ها موقع لاگین
             flash('با موفقیت وارد شدید!', 'success')
             return redirect('/')
         else:
