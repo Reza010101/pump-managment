@@ -5,22 +5,19 @@ import os
 from date_converter import gregorian_to_jalali, jalali_to_gregorian
 import pandas as pd
 import io
-from datetime import datetime
-
 
 app = Flask(__name__)
 app.secret_key = 'pump_management_secret_key_2024'
 
-# تابع کمکی برای اتصال به دیتابیس
 def get_db_connection():
     conn = sqlite3.connect('pump_management.db')
-    conn.row_factory = sqlite3.Row  # برای دسترسی به ستون‌ها با نام
+    conn.row_factory = sqlite3.Row
     return conn
+
 def get_pump_history_from_db(pump_number):
     """دریافت تاریخچه یک پمپ خاص از دیتابیس"""
     conn = get_db_connection()
     
-    # پیدا کردن pump_id از pump_number
     pump = conn.execute(
         'SELECT id FROM pumps WHERE pump_number = ?', (pump_number,)
     ).fetchone()
@@ -31,25 +28,23 @@ def get_pump_history_from_db(pump_number):
     
     pump_id = pump['id']
     
-    # دریافت تاریخچه پمپ
     history = conn.execute('''
-        SELECT action, action_time, reason, notes 
+        SELECT action, event_time, reason, notes 
         FROM pump_history 
         WHERE pump_id = ? 
-        ORDER BY action_time
+        ORDER BY event_time
     ''', (pump_id,)).fetchall()
     
     conn.close()
     
-    # تبدیل به لیست dictionary
     events = []
     for event in history:
         events.append({
             'action': event['action'],
-            'action_time': event['action_time'],
+            'event_time': event['event_time'],
             'reason': event['reason'],
             'notes': event['notes'],
-            'source': 'existing'  # برای تشخیص از داده‌های جدید
+            'source': 'existing'
         })
     
     return events
@@ -58,10 +53,10 @@ def get_last_event_before(pump_id, datetime_obj):
     """پیدا کردن آخرین رویداد قبل از زمان مشخص"""
     conn = get_db_connection()
     event = conn.execute('''
-        SELECT action, action_time 
+        SELECT action, event_time 
         FROM pump_history 
-        WHERE pump_id = ? AND action_time < ?
-        ORDER BY action_time DESC 
+        WHERE pump_id = ? AND event_time < ?
+        ORDER BY event_time DESC 
         LIMIT 1
     ''', (pump_id, datetime_obj.strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
     conn.close()
@@ -69,7 +64,7 @@ def get_last_event_before(pump_id, datetime_obj):
     if event:
         return {
             'action': event['action'],
-            'action_time': datetime.strptime(event['action_time'], '%Y-%m-%d %H:%M:%S')
+            'event_time': datetime.strptime(event['event_time'], '%Y-%m-%d %H:%M:%S')
         }
     return None
 
@@ -77,10 +72,10 @@ def get_pump_events_in_range(pump_id, start_time, end_time):
     """دریافت رویدادهای یک پمپ در بازه زمانی مشخص"""
     conn = get_db_connection()
     events = conn.execute('''
-        SELECT action, action_time 
+        SELECT action, event_time 
         FROM pump_history 
-        WHERE pump_id = ? AND action_time BETWEEN ? AND ?
-        ORDER BY action_time
+        WHERE pump_id = ? AND event_time BETWEEN ? AND ?
+        ORDER BY event_time
     ''', (pump_id, start_time.strftime('%Y-%m-%d %H:%M:%S'), end_time.strftime('%Y-%m-%d %H:%M:%S'))).fetchall()
     conn.close()
     
@@ -88,112 +83,70 @@ def get_pump_events_in_range(pump_id, start_time, end_time):
     for event in events:
         result.append({
             'action': event['action'],
-            'action_time': datetime.strptime(event['action_time'], '%Y-%m-%d %H:%M:%S')
+            'event_time': datetime.strptime(event['event_time'], '%Y-%m-%d %H:%M:%S')
         })
     return result
 
 def calculate_daily_operating_hours(pump_id, target_date_jalali):
     """محاسبه ساعات کارکرد یک پمپ در یک روز خاص"""
     try:
-        print(f"🎯 شروع محاسبه برای پمپ {pump_id} در تاریخ {target_date_jalali}")
-        
-        # تبدیل تاریخ شمسی به میلادی
         start_of_day_str = jalali_to_gregorian(f"{target_date_jalali} 00:00:00")
         end_of_day_str = jalali_to_gregorian(f"{target_date_jalali} 23:59:59")
         
-        # تبدیل string به datetime
         start_of_day = datetime.strptime(start_of_day_str, '%Y-%m-%d %H:%M:%S')
         end_of_day = datetime.strptime(end_of_day_str, '%Y-%m-%d %H:%M:%S')
         
-        print(f"   📅 بازه جستجو: {start_of_day} تا {end_of_day}")
-        
-        # ۱. آخرین رویداد قبل از روز
         last_event_before = get_last_event_before(pump_id, start_of_day)
-        print(f"   🔍 آخرین رویداد قبل: {last_event_before}")
         
-        # ۲. رویدادهای درون روز
         days_events = get_pump_events_in_range(pump_id, start_of_day, end_of_day)
-        print(f"   📋 رویدادهای روز: {len(days_events)} مورد")
-        for event in days_events:
-            print(f"      - {event['action']} در {event['action_time']}")
         
-        # ۳. تعیین وضعیت اولیه
         if last_event_before:
             current_status = last_event_before['action']
         else:
             current_status = 'OFF'
-        print(f"   🏁 وضعیت اولیه: {current_status}")
         
-        # ۴. اگر هیچ رویدادی در روز نیست
         if not days_events:
-            result = 24.0 if current_status == 'ON' else 0.0
-            print(f"   ⏰ نتیجه نهایی (بدون رویداد): {result} ساعت")
-            return result
+            return 24.0 if current_status == 'ON' else 0.0
         
-        # ۵. محاسبه با رویدادهای روز
         total_seconds = 0
         current_time = start_of_day
         
-        # اضافه کردن رویداد پایان روز به عنوان رویداد مجازی
-        all_events = days_events + [{'action_time': end_of_day, 'action': 'END'}]
+        all_events = days_events + [{'event_time': end_of_day, 'action': 'END'}]
         
-        print(f"   🧮 شروع محاسبه بازه‌ها:")
-        for i, event in enumerate(all_events):
+        for event in all_events:
             if current_status == 'ON':
-                time_diff = (event['action_time'] - current_time).total_seconds()
+                time_diff = (event['event_time'] - current_time).total_seconds()
                 total_seconds += time_diff
-                print(f"      بازه {i}: {current_time} تا {event['action_time']} = {time_diff/3600:.2f} ساعت")
             
             if event['action'] != 'END':
                 current_status = event['action']
-                current_time = event['action_time']
+                current_time = event['event_time']
         
         hours = total_seconds / 3600
-        final_result = round(hours, 2)
-        print(f"   ✅ نتیجه نهایی: {final_result} ساعت")
-        return final_result
+        return round(hours, 2)
         
     except Exception as e:
-        print(f"❌ خطا در محاسبه ساعات کارکرد پمپ {pump_id}: {e}")
         return 0.0
     
 def calculate_monthly_operating_hours(pump_id, target_month_jalali):
-    """
-    محاسبه ساعات کارکرد یک پمپ در یک ماه خاص
-    """
+    """محاسبه ساعات کارکرد یک پمپ در یک ماه خاص"""
     try:
-        print(f"🎯 شروع محاسبه ماهانه برای پمپ {pump_id} در ماه {target_month_jalali}")
-        
-        # تبدیل ماه شمسی به میلادی
         year, month = map(int, target_month_jalali.split('/'))
-        
         total_hours = 0
         
-        # محاسبه برای هر روز ماه (۱ تا ۳۱)
         for day in range(1, 32):
             try:
                 date_jalali = f"{year}/{month:02d}/{day:02d}"
-                print(f"   📅 محاسبه روز {day}: {date_jalali}")
-                
                 daily_hours = calculate_daily_operating_hours(pump_id, date_jalali)
                 total_hours += daily_hours
-                
-                print(f"   ✅ روز {day}: {daily_hours} ساعت - مجموع: {total_hours} ساعت")
-                
-            except Exception as e:
-                # اگر تاریخ نامعتبر بود (مثلاً ۳۱ام بعضی ماه‌ها) ادامه بده
-                print(f"   ⏭️  روز {day}: خطا - {e}")
+            except Exception:
                 continue
         
-        final_result = round(total_hours, 2)
-        print(f"🎉 نتیجه نهایی ماهانه پمپ {pump_id}: {final_result} ساعت")
-        return final_result
+        return round(total_hours, 2)
         
     except Exception as e:
-        print(f"❌ خطا در محاسبه ساعات کارکرد ماهانه پمپ {pump_id}: {e}")
         return 0.0
-        
-# صفحه لاگین
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -212,7 +165,7 @@ def login():
             session['username'] = user['username']
             session['full_name'] = user['full_name']
             session['role'] = user['role']
-            update_pump_current_status()  # آپدیت آخرین وضعیت پمپ ها موقع لاگین
+            update_pump_current_status()
             flash('با موفقیت وارد شدید!', 'success')
             return redirect('/')
         else:
@@ -220,7 +173,6 @@ def login():
     
     return render_template('login.html')
 
-# صفحه اصلی - نمایش پمپ‌ها
 @app.route('/')
 def dashboard():
     if 'user_id' not in session:
@@ -228,12 +180,11 @@ def dashboard():
     
     conn = get_db_connection()
     
-    # 🔽 این کوئری رو تغییر بده 🔽
     pumps = conn.execute('''
         SELECT p.*, 
                (SELECT action FROM pump_history 
                 WHERE pump_id = p.id 
-                ORDER BY action_time DESC LIMIT 1) as last_action,
+                ORDER BY event_time DESC LIMIT 1) as last_action,
                (SELECT COUNT(*) FROM pump_history WHERE pump_id = p.id) as has_history
         FROM pumps p 
         ORDER BY p.pump_number
@@ -241,11 +192,9 @@ def dashboard():
     
     conn.close()
     
-    # تبدیل تاریخ‌ها به شمسی 
     pumps_with_jalali = []
     for pump in pumps:
         pump_dict = dict(pump)
-        # 🔽 این خط رو اضافه کن 🔽
         pump_dict['has_history'] = pump['has_history']
         
         if pump['last_change']:
@@ -255,13 +204,13 @@ def dashboard():
         pumps_with_jalali.append(pump_dict)
     
     return render_template('dashboard.html', pumps=pumps_with_jalali)
-# خروج
+
 @app.route('/logout')
 def logout():
     session.clear()
     flash('با موفقیت خارج شدید!', 'success')
     return redirect('/login')
-# تغییر وضعیت پمپ با جزئیات
+
 @app.route('/pump/change-status', methods=['POST'])
 def change_pump_status_detailed():
     if 'user_id' not in session:
@@ -272,14 +221,13 @@ def change_pump_status_detailed():
     action = data.get('action')
     reason = data.get('reason')
     notes = data.get('notes', '')
-    action_date_jalali = data.get('action_date_jalali')  # تاریخ شمسی از کاربر
+    action_date_jalali = data.get('action_date_jalali')
     action_time = data.get('action_time')
     manual_time = data.get('manual_time', False)
     
     conn = get_db_connection()
     
     try:
-        # بررسی وضعیت فعلی پمپ
         current_pump = conn.execute(
             'SELECT status FROM pumps WHERE id = ?', (pump_id,)
         ).fetchone()
@@ -290,43 +238,37 @@ def change_pump_status_detailed():
         current_status = current_pump['status']
         new_status = True if action == 'on' else False
         
-        # جلوگیری از تغییر تکراری
         if current_status == new_status and get_last_pump_event_time(pump_id):
             return jsonify({
                 'success': False, 
                 'error': f'پمپ در حال حاضر {"روشن" if current_status else "خاموش"} است'
             })
                       
-        # آماده کردن timestamp
-        action_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')  # پیشفرض زمان حال
+        event_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        recorded_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         if manual_time and action_date_jalali and action_time:
-            # تبدیل شمسی به میلادی
             jalali_datetime_str = f"{action_date_jalali} {action_time}:00"
-            action_timestamp = jalali_to_gregorian(jalali_datetime_str)  # زمان دستی
+            event_time = jalali_to_gregorian(jalali_datetime_str)
             
-            # اعتبارسنجی تاریخ برای پمپ‌های با تاریخچه
             last_event_time = get_last_pump_event_time(pump_id)
-            if last_event_time and action_timestamp <= last_event_time:
+            if last_event_time and event_time <= last_event_time:
                 last_event_jalali = gregorian_to_jalali(last_event_time)
                 return jsonify({
                     'success': False, 
                     'error': f'تاریخ انتخاب شده باید بعد از آخرین ثبت ({last_event_jalali[:16]}) باشد'
                 })
 
-        # آپدیت وضعیت پمپ
         conn.execute(
             'UPDATE pumps SET status = ?, last_change = ? WHERE id = ?',
-            (new_status, action_timestamp, pump_id)
+            (new_status, event_time, pump_id)
         )
         
-        # ثبت در تاریخچه با جزئیات
         conn.execute(
             '''INSERT INTO pump_history 
-               (pump_id, user_id, action, action_time, reason, notes, manual_time) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)''',
-            (pump_id, session['user_id'], action.upper(), action_timestamp, 
-             reason, notes, manual_time)
+            (pump_id, user_id, action, event_time, recorded_time, reason, notes, manual_time) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (pump_id, session['user_id'], action, event_time, recorded_time, reason, notes, manual_time)
         )
         
         conn.commit()
@@ -342,8 +284,6 @@ def change_pump_status_detailed():
     finally:
         conn.close()
 
-
-# صفحه گزارش تاریخی (موقت)
 @app.route('/report/history')
 def history_report():
     if 'user_id' not in session:
@@ -356,7 +296,6 @@ def operating_hours_report():
     if 'user_id' not in session:
         return redirect('/login')
     
-    # دریافت پارامترها
     date_jalali = request.args.get('date')
     month_jalali = request.args.get('month')
     report_type = request.args.get('report_type', 'daily')
@@ -364,11 +303,9 @@ def operating_hours_report():
     results = []
     
     if report_type == 'daily' and date_jalali:
-        # گزارش روزانه
         for pump_id in range(1, 59):
             pump_hours = calculate_daily_operating_hours(pump_id, date_jalali)
             
-            # پیدا کردن اطلاعات پمپ
             conn = get_db_connection()
             pump = conn.execute(
                 'SELECT pump_number, name FROM pumps WHERE id = ?', (pump_id,)
@@ -383,11 +320,9 @@ def operating_hours_report():
                 })
                 
     elif report_type == 'monthly' and month_jalali:
-        # گزارش ماهانه
         for pump_id in range(1, 59):
             pump_hours = calculate_monthly_operating_hours(pump_id, month_jalali)
             
-            # پیدا کردن اطلاعات پمپ
             conn = get_db_connection()
             pump = conn.execute(
                 'SELECT pump_number, name FROM pumps WHERE id = ?', (pump_id,)
@@ -401,7 +336,6 @@ def operating_hours_report():
                     'operating_hours': pump_hours
                 })
     
-    # مرتب‌سازی بر اساس شماره پمپ
     results.sort(key=lambda x: x['pump_number'])
     
     return render_template('operating_hours_report.html', 
@@ -415,7 +349,6 @@ def export_operating_hours():
     if 'user_id' not in session:
         return redirect('/login')
     
-    # دریافت پارامترها
     date_jalali = request.args.get('date')
     month_jalali = request.args.get('month')
     report_type = request.args.get('report_type', 'daily')
@@ -423,7 +356,6 @@ def export_operating_hours():
     results = []
     
     if report_type == 'daily' and date_jalali:
-        # گزارش روزانه
         period_title = f"گزارش ساعات کارکرد روزانه - تاریخ: {date_jalali}"
         for pump_id in range(1, 59):
             pump_hours = calculate_daily_operating_hours(pump_id, date_jalali)
@@ -442,7 +374,6 @@ def export_operating_hours():
                 })
                 
     elif report_type == 'monthly' and month_jalali:
-        # گزارش ماهانه
         period_title = f"گزارش ساعات کارکرد ماهانه - ماه: {month_jalali}"
         for pump_id in range(1, 59):
             pump_hours = calculate_monthly_operating_hours(pump_id, month_jalali)
@@ -460,33 +391,26 @@ def export_operating_hours():
                     'operating_hours': pump_hours
                 })
     
-    # مرتب‌سازی بر اساس شماره پمپ
     results.sort(key=lambda x: x['pump_number'])
     
-    # ایجاد DataFrame
     df = pd.DataFrame(results)
     
-    # ایجاد فایل Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='گزارش ساعات کارکرد', index=False)
         
-        # دسترسی به workbook و worksheet برای فرمت‌بندی
         workbook = writer.book
         worksheet = writer.sheets['گزارش ساعات کارکرد']
         
-        # اضافه کردن عنوان
         worksheet['A1'] = period_title
         worksheet.merge_cells('A1:C1')
         
-        # تنظیم عرض ستون‌ها
         worksheet.column_dimensions['A'].width = 15
         worksheet.column_dimensions['B'].width = 25
         worksheet.column_dimensions['C'].width = 20
     
     output.seek(0)
     
-    # نام فایل
     if report_type == 'daily':
         filename = f'operating_hours_daily_{date_jalali.replace("/", "-")}.xlsx'
     else:
@@ -499,7 +423,6 @@ def export_operating_hours():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
 
-# صفحه مدیریت کاربران
 @app.route('/admin/users')
 def manage_users():
     if 'user_id' not in session:
@@ -515,7 +438,6 @@ def manage_users():
     
     return render_template('manage_users.html', users=users)
 
-# تغییر پسورد
 @app.route('/change-password', methods=['GET', 'POST'])
 def change_password():
     if 'user_id' not in session:
@@ -528,7 +450,6 @@ def change_password():
         
         conn = get_db_connection()
         
-        # بررسی پسورد فعلی
         user = conn.execute(
             'SELECT * FROM users WHERE id = ? AND password = ?',
             (session['user_id'], current_password)
@@ -546,7 +467,6 @@ def change_password():
             flash('پسورد جدید باید حداقل ۴ کاراکتر باشد!', 'error')
             return redirect('/change-password')
         
-        # آپدیت پسورد
         conn.execute(
             'UPDATE users SET password = ?, last_password_change = CURRENT_TIMESTAMP WHERE id = ?',
             (new_password, session['user_id'])
@@ -559,7 +479,6 @@ def change_password():
     
     return render_template('change_password.html')
 
-# ایجاد کاربر جدید (فقط مدیر)
 @app.route('/admin/create-user', methods=['GET', 'POST'])
 def create_user():
     if 'user_id' not in session or session['role'] != 'admin':
@@ -575,7 +494,6 @@ def create_user():
         conn = get_db_connection()
         
         try:
-            # بررسی وجود کاربر
             existing_user = conn.execute(
                 'SELECT id FROM users WHERE username = ?', (username,)
             ).fetchone()
@@ -584,7 +502,6 @@ def create_user():
                 flash('نام کاربری قبلاً استفاده شده است!', 'error')
                 return redirect('/admin/create-user')
             
-            # ایجاد کاربر جدید
             conn.execute(
                 'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
                 (username, password, full_name, role)
@@ -602,14 +519,12 @@ def create_user():
     
     return render_template('create_user.html')
 
-# حذف کاربر (فقط مدیر)
 @app.route('/admin/delete-user/<int:user_id>')
 def delete_user(user_id):
     if 'user_id' not in session or session['role'] != 'admin':
         flash('دسترسی غیر مجاز!', 'error')
         return redirect('/')
     
-    # جلوگیری از حذف خود
     if user_id == session['user_id']:
         flash('شما نمی‌توانید حساب خود را حذف کنید!', 'error')
         return redirect('/admin/users')
@@ -651,10 +566,8 @@ def import_history():
             return redirect('/admin/import-history')
         
         try:
-            # خواندن فایل اکسل
             df = pd.read_excel(file)
             
-            # بررسی ستون‌های ضروری
             required_columns = ['Pump_Number', 'Action', 'Reason', 'Date_Jalali', 'Time_Jalali']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
@@ -667,7 +580,6 @@ def import_history():
             error_count = 0
             error_messages = []
             
-            # ۱. گروه‌بندی داده‌ها بر اساس پمپ
             pump_groups = {}
             for index, row in df.iterrows():
                 try:
@@ -675,24 +587,21 @@ def import_history():
                     if pump_num not in pump_groups:
                         pump_groups[pump_num] = []
                     
-                    # تبدیل تاریخ شمسی به میلادی
                     date_jalali = str(row['Date_Jalali']).strip()
                     time_jalali = str(row['Time_Jalali']).strip()
                     
-                    # کامل کردن فرمت زمان
                     if ':' not in time_jalali:
                         time_jalali += ':00'
                     elif time_jalali.count(':') == 1:
                         time_jalali += ':00'
                     
                     jalali_datetime = f"{date_jalali} {time_jalali}"
-                    action_time_gregorian = jalali_to_gregorian(jalali_datetime)
+                    event_time_gregorian = jalali_to_gregorian(jalali_datetime)
                     
-                    # اضافه کردن داده به گروه پمپ
                     pump_groups[pump_num].append({
                         'row_index': index + 2,
                         'action': str(row['Action']).upper().strip(),
-                        'action_time': action_time_gregorian,
+                        'event_time': event_time_gregorian,
                         'reason': str(row['Reason']).strip(),
                         'notes': str(row['Notes']) if 'Notes' in df.columns and pd.notna(row['Notes']) else '',
                         'jalali_time': jalali_datetime,
@@ -703,26 +612,19 @@ def import_history():
                     error_messages.append(f'خط {index+2}: پمپ {pump_num} - خطا در پردازش داده ({str(e)})')
                     error_count += 1
             
-            # ۲. پردازش هر پمپ به صورت جداگانه
             for pump_num, new_events in pump_groups.items():
                 try:
-                    # داده‌های موجود این پمپ از دیتابیس
                     existing_events = get_pump_history_from_db(pump_num)
                     
-                    # ادغام داده‌های جدید و موجود
                     all_events = existing_events + new_events
+                    all_events.sort(key=lambda x: x['event_time'])
                     
-                    # مرتب‌سازی بر اساس زمان
-                    all_events.sort(key=lambda x: x['action_time'])
-                    
-                    # ۳. اعتبارسنجی timeline برای هر پمپ - کل تایم‌لاین
                     timeline_errors = []
                     for i in range(1, len(all_events)):
                         prev_action = all_events[i-1]['action']
                         current_action = all_events[i]['action']
                         
                         if prev_action == current_action:
-                            # ⛔ هرگونه مغایرت در کل تایم‌لاین خطاست
                             error_event = all_events[i]
                             prev_event = all_events[i-1]
                             
@@ -736,23 +638,20 @@ def import_history():
                         for error in timeline_errors:
                             error_messages.append(f'خط {error["row_index"]}: {error["message"]}')
                     else:
-                        # ذخیره داده‌های جدید این پمپ (فقط داده‌های معتبر)
                         for event in new_events:
                             try:
-                                # پیدا کردن pump_id
                                 pump = conn.execute(
                                     'SELECT id FROM pumps WHERE pump_number = ?', (pump_num,)
                                 ).fetchone()
                                 
                                 if pump:
-                                    #  عدم بررسی تکراری بودن
                                     conn.execute(
-                                        '''INSERT INTO pump_history 
-                                        (pump_id, user_id, action, action_time, reason, notes, manual_time) 
-                                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
-                                        (pump['id'], session['user_id'], event['action'], 
-                                        event['action_time'], event['reason'], event['notes'], True)
-                                    )
+                                    '''INSERT INTO pump_history 
+                                    (pump_id, user_id, action, event_time, recorded_time, reason, notes, manual_time) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                                    (pump['id'], session['user_id'], event['action'], 
+                                    event['event_time'], datetime.now(), event['reason'], event['notes'], True)
+                                )
                                     success_count += 1
                                 else:
                                     error_messages.append(f'خط {event["row_index"]}: پمپ با شماره {pump_num} یافت نشد')
@@ -773,8 +672,7 @@ def import_history():
             
             if error_count > 0:
                 flash(f'❌ {error_count} خطا در پردازش', 'error')
-                # نمایش خطاها
-                for i, error_msg in enumerate(error_messages[:10]):  # حداکثر ۱۰ خطا نمایش داده شود
+                for i, error_msg in enumerate(error_messages[:10]):
                     flash(f'خطا {i+1}: {error_msg}', 'warning')
                 if len(error_messages) > 10:
                     flash(f'... و {len(error_messages) - 10} خطای دیگر', 'warning')
@@ -794,7 +692,6 @@ def download_sample():
         flash('دسترسی غیر مجاز!', 'error')
         return redirect('/')
     
-    # ایجاد نمونه داده
     sample_data = {
         'Pump_Number': [1, 1, 2, 3],
         'Action': ['ON', 'OFF', 'ON', 'OFF'],
@@ -806,7 +703,6 @@ def download_sample():
     
     df = pd.DataFrame(sample_data)
     
-    # ایجاد فایل در memory
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='Sample', index=False)
@@ -819,30 +715,30 @@ def download_sample():
         download_name='pump_history_sample.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
 def update_pump_current_status():
     """آپدیت وضعیت فعلی پمپ‌ها بر اساس آخرین رویداد در تاریخچه"""
     conn = get_db_connection()
     
-    for pump_id in range(1, 59):  # برای همه ۵۸ پمپ
-        # پیدا کردن آخرین رویداد این پمپ
+    for pump_id in range(1, 59):
         last_event = conn.execute('''
-            SELECT action, action_time 
+            SELECT action, event_time 
             FROM pump_history 
             WHERE pump_id = ? 
-            ORDER BY action_time DESC 
+            ORDER BY event_time DESC 
             LIMIT 1
         ''', (pump_id,)).fetchone()
         
         if last_event:
-            # آپدیت وضعیت فعلی پمپ
             current_status = 1 if last_event['action'] == 'ON' else 0
             conn.execute(
                 'UPDATE pumps SET status = ?, last_change = ? WHERE id = ?',
-                (current_status, last_event['action_time'], pump_id)
+                (current_status, last_event['event_time'], pump_id)
             )
     
     conn.commit()
     conn.close()
+
 @app.route('/reports')
 def reports_dashboard():
     if 'user_id' not in session:
@@ -855,7 +751,6 @@ def status_at_time_report():
     if 'user_id' not in session:
         return redirect('/login')
     
-    # دریافت پارامترها
     date_jalali = request.args.get('date')
     time = request.args.get('time')
     display_type = request.args.get('display_type', 'off')
@@ -863,7 +758,6 @@ def status_at_time_report():
     if not date_jalali or not time:
         return render_template('status_at_time_report.html')
     
-    # منطق محاسباتی
     target_datetime_jalali = f"{date_jalali} {time}:00"
     target_datetime_gregorian = jalali_to_gregorian(target_datetime_jalali)
 
@@ -872,17 +766,17 @@ def status_at_time_report():
 
     for pump_id in range(1, 59):
         last_event = conn.execute('''
-            SELECT ph.action, ph.action_time, ph.reason, ph.notes, p.pump_number, p.name
+            SELECT ph.action, ph.event_time, ph.reason, ph.notes, p.pump_number, p.name
             FROM pump_history ph
             JOIN pumps p ON ph.pump_id = p.id
-            WHERE ph.pump_id = ? AND ph.action_time <= ?
-            ORDER BY ph.action_time DESC 
+            WHERE ph.pump_id = ? AND ph.event_time <= ?
+            ORDER BY ph.event_time DESC 
             LIMIT 1
         ''', (pump_id, target_datetime_gregorian)).fetchone()
         
         if last_event:
             status = 'ON' if last_event['action'] == 'ON' else 'OFF'
-            last_change_jalali = gregorian_to_jalali(last_event['action_time'])
+            last_change_jalali = gregorian_to_jalali(last_event['event_time'])
             
             if display_type == 'all' or (display_type == 'on' and status == 'ON') or (display_type == 'off' and status == 'OFF'):
                 results.append({
@@ -907,12 +801,10 @@ def export_status_at_time():
     if 'user_id' not in session:
         return redirect('/login')
     
-    # دریافت پارامترها
     date_jalali = request.args.get('date')
     time = request.args.get('time')
     display_type = request.args.get('display_type', 'off')
     
-    # تولید فایل اکسل
     target_datetime_jalali = f"{date_jalali} {time}:00"
     target_datetime_gregorian = jalali_to_gregorian(target_datetime_jalali)
 
@@ -921,17 +813,17 @@ def export_status_at_time():
 
     for pump_id in range(1, 59):
         last_event = conn.execute('''
-            SELECT ph.action, ph.action_time, ph.reason, ph.notes, p.pump_number, p.name
+            SELECT ph.action, ph.event_time, ph.reason, ph.notes, p.pump_number, p.name
             FROM pump_history ph
             JOIN pumps p ON ph.pump_id = p.id
-            WHERE ph.pump_id = ? AND ph.action_time <= ?
-            ORDER BY ph.action_time DESC 
+            WHERE ph.pump_id = ? AND ph.event_time <= ?
+            ORDER BY ph.event_time DESC 
             LIMIT 1
         ''', (pump_id, target_datetime_gregorian)).fetchone()
         
         if last_event:
             status = 'ON' if last_event['action'] == 'ON' else 'OFF'
-            last_change_jalali = gregorian_to_jalali(last_event['action_time'])
+            last_change_jalali = gregorian_to_jalali(last_event['event_time'])
             
             if display_type == 'all' or (display_type == 'on' and status == 'ON') or (display_type == 'off' and status == 'OFF'):
                 results.append({
@@ -945,10 +837,8 @@ def export_status_at_time():
 
     conn.close()
     
-    # ایجاد DataFrame
     df = pd.DataFrame(results)
     
-    # ایجاد فایل Excel
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='گزارش وضعیت', index=False)
@@ -961,23 +851,23 @@ def export_status_at_time():
         download_name=f'status_report_{date_jalali}_{time}.xlsx',
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
 def get_last_pump_event_time(pump_id):
     """آخرین زمان ثبت شده برای پمپ را برمی‌گرداند"""
     conn = get_db_connection()
     last_event = conn.execute(
-        'SELECT action_time FROM pump_history WHERE pump_id = ? ORDER BY action_time DESC LIMIT 1',
+        'SELECT event_time FROM pump_history WHERE pump_id = ? ORDER BY event_time DESC LIMIT 1',
         (pump_id,)
     ).fetchone()
     conn.close()
     
-    return last_event['action_time'] if last_event else None
+    return last_event['event_time'] if last_event else None
 
 @app.route('/report/full-history')
 def full_history_report():
     if 'user_id' not in session:
         return redirect('/login')
     
-    # دریافت پارامترها
     from_date_jalali = request.args.get('from_date')
     to_date_jalali = request.args.get('to_date')
     pump_id = request.args.get('pump_id', 'all')
@@ -985,47 +875,42 @@ def full_history_report():
     results = []
     
     if from_date_jalali and to_date_jalali:
-        # تبدیل تاریخ‌ها به میلادی
         start_date = jalali_to_gregorian(f"{from_date_jalali} 00:00:00")
         end_date = jalali_to_gregorian(f"{to_date_jalali} 23:59:59")
         
         conn = get_db_connection()
         
         if pump_id == 'all':
-            # همه پمپ‌ها
             query = '''
-                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                SELECT p.pump_number, p.name, ph.action, ph.event_time, 
                        ph.reason, ph.notes, u.full_name as user_name
                 FROM pump_history ph
                 JOIN pumps p ON ph.pump_id = p.id
                 JOIN users u ON ph.user_id = u.id
-                WHERE ph.action_time BETWEEN ? AND ?
-                ORDER BY ph.action_time DESC
+                WHERE ph.event_time BETWEEN ? AND ?
+                ORDER BY ph.event_time DESC
             '''
             params = (start_date, end_date)
         else:
-            # پمپ خاص
             query = '''
-                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                SELECT p.pump_number, p.name, ph.action, ph.event_time, 
                        ph.reason, ph.notes, u.full_name as user_name
                 FROM pump_history ph
                 JOIN pumps p ON ph.pump_id = p.id
                 JOIN users u ON ph.user_id = u.id
-                WHERE p.pump_number = ? AND ph.action_time BETWEEN ? AND ?
-                ORDER BY ph.action_time DESC
+                WHERE p.pump_number = ? AND ph.event_time BETWEEN ? AND ?
+                ORDER BY ph.event_time DESC
             '''
             params = (pump_id, start_date, end_date)
         
         results = conn.execute(query, params).fetchall()
         conn.close()
         
-        # تبدیل به لیست dictionary و جدا کردن تاریخ و ساعت
         formatted_results = []
         for row in results:
             row_dict = dict(row)
             
-            # جدا کردن تاریخ و ساعت
-            jalali_datetime = gregorian_to_jalali(row['action_time'])
+            jalali_datetime = gregorian_to_jalali(row['event_time'])
             jalali_parts = jalali_datetime.split(' ')
             row_dict['action_date'] = jalali_parts[0]
             row_dict['action_time'] = jalali_parts[1][:5] if len(jalali_parts) > 1 else '00:00'
@@ -1046,7 +931,6 @@ def export_full_history():
     if 'user_id' not in session:
         return redirect('/login')
     
-    # دریافت پارامترها
     from_date_jalali = request.args.get('from_date')
     to_date_jalali = request.args.get('to_date')
     pump_id = request.args.get('pump_id', 'all')
@@ -1056,7 +940,6 @@ def export_full_history():
         return redirect('/report/full-history')
     
     try:
-        # تبدیل تاریخ‌ها به میلادی
         start_date = jalali_to_gregorian(f"{from_date_jalali} 00:00:00")
         end_date = jalali_to_gregorian(f"{to_date_jalali} 23:59:59")
         
@@ -1064,35 +947,33 @@ def export_full_history():
         
         if pump_id == 'all':
             query = '''
-                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                SELECT p.pump_number, p.name, ph.action, ph.event_time, 
                        ph.reason, ph.notes, u.full_name as user_name
                 FROM pump_history ph
                 JOIN pumps p ON ph.pump_id = p.id
                 JOIN users u ON ph.user_id = u.id
-                WHERE ph.action_time BETWEEN ? AND ?
-                ORDER BY ph.action_time DESC
+                WHERE ph.event_time BETWEEN ? AND ?
+                ORDER BY ph.event_time DESC
             '''
             params = (start_date, end_date)
         else:
             query = '''
-                SELECT p.pump_number, p.name, ph.action, ph.action_time, 
+                SELECT p.pump_number, p.name, ph.action, ph.event_time, 
                        ph.reason, ph.notes, u.full_name as user_name
                 FROM pump_history ph
                 JOIN pumps p ON ph.pump_id = p.id
                 JOIN users u ON ph.user_id = u.id
-                WHERE p.pump_number = ? AND ph.action_time BETWEEN ? AND ?
-                ORDER BY ph.action_time DESC
+                WHERE p.pump_number = ? AND ph.event_time BETWEEN ? AND ?
+                ORDER BY ph.event_time DESC
             '''
             params = (pump_id, start_date, end_date)
         
         results = conn.execute(query, params).fetchall()
         conn.close()
         
-        # آماده‌سازی داده برای اکسل
         data = []
         for row in results:
-            # جدا کردن تاریخ و ساعت از تاریخ شمسی
-            jalali_datetime = gregorian_to_jalali(row['action_time'])
+            jalali_datetime = gregorian_to_jalali(row['event_time'])
             jalali_parts = jalali_datetime.split(' ')
             jalali_date = jalali_parts[0]
             jalali_time = jalali_parts[1] if len(jalali_parts) > 1 else '00:00:00'
@@ -1102,7 +983,7 @@ def export_full_history():
                 'نام پمپ': row['name'],
                 'وضعیت': 'روشن' if row['action'] == 'ON' else 'خاموش',
                 'تاریخ': jalali_date,
-                'ساعت': jalali_time[:5],  # فقط ساعت و دقیقه
+                'ساعت': jalali_time[:5],
                 'علت': row['reason'],
                 'توضیحات': row['notes'] or '',
                 'کاربر': row['user_name']
@@ -1114,12 +995,10 @@ def export_full_history():
         
         df = pd.DataFrame(data)
         
-        # ایجاد فایل Excel
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, sheet_name='تاریخچه تغییرات', index=False)
             
-            # تنظیم عرض ستون‌ها
             worksheet = writer.sheets['تاریخچه تغییرات']
             worksheet.column_dimensions['A'].width = 12
             worksheet.column_dimensions['B'].width = 20
@@ -1142,20 +1021,18 @@ def export_full_history():
         )
         
     except Exception as e:
-        print(f"❌ خطا در تولید فایل اکسل: {e}")
         flash(f'خطا در تولید فایل: {str(e)}', 'error')
         return redirect('/report/full-history')
     
 if __name__ == '__main__':
-    # مطمئن شو دیتابیس وجود دارد
     if not os.path.exists('pump_management.db'):
-        print("⚠️database dont exist , please run database.py")
+        print("⚠️ دیتابیس وجود ندارد، لطفا ابتدا database.py را اجرا کنید")
         exit(1)
     
-    print("🚀 server is running...")
-    print("📧 for enter: http://localhost:5000/login")
-    print("   users:")
-    print("   - admin / 1234 (admin)")
-    print("   - user1 / 1234 (user)")
+    print("🚀 سرور در حال اجراست...")
+    print("📧 برای ورود: http://localhost:5000/login")
+    print("   کاربران:")
+    print("   - admin / 1234 (مدیر)")
+    print("   - user1 / 1234 (کاربر)")
     
     app.run(debug=True, host='0.0.0.0', port=5000)

@@ -28,6 +28,39 @@
             border-top: none;
             font-weight: 600;
         }
+        /* استایل‌های مخصوص داشبورد */
+        .pump-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .pump-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        .pump-on {
+            border-color: #28a745 !important;
+            background: linear-gradient(135deg, #f8fff9 0%, #e8f5e9 100%);
+        }
+        .pump-off {
+            border-color: #dc3545 !important;
+            background: linear-gradient(135deg, #fff8f8 0%, #ffeaea 100%);
+        }
+        .pump-unknown {
+            border-color: #6c757d !important;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+        }
+        .btn-action {
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>

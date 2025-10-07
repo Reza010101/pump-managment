@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from datetime import datetime
 
 def create_database():
     # اتصال به دیتابیس - اگر نبود ساخته میشه
@@ -33,14 +34,15 @@ def create_database():
         )
     ''')
     
-    # جدول تاریخچه تغییرات پمپ‌ها - نسخه آپدیت شده
+    # جدول تاریخچه تغییرات پمپ‌ها - نسخه آپدیت شده با دو فیلد زمان
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pump_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             pump_id INTEGER,
             user_id INTEGER,
             action TEXT NOT NULL,  -- 'ON' یا 'OFF'
-            action_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            event_time TIMESTAMP,  -- زمان واقعی رویداد (جدید)
+            recorded_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- زمان ثبت در سیستم (جدید)
             reason TEXT,           -- علت تغییر وضعیت
             notes TEXT,            -- توضیحات اضافی
             manual_time BOOLEAN DEFAULT FALSE,  -- آیا زمان دستی وارد شده؟
@@ -73,6 +75,9 @@ def create_database():
     print("👤 کاربران پیشفرض:")
     print("   - admin / 1234 (مدیر)")
     print("   - user1 / 1234 (کاربر معمولی)")
+    print("🆕 فیلدهای جدید اضافه شد:")
+    print("   - event_time (زمان واقعی رویداد)")
+    print("   - recorded_time (زمان ثبت در سیستم)")
 
 def test_database():
     """تست اتصال به دیتابیس"""
@@ -104,11 +109,50 @@ def test_database():
     except Exception as e:
         print(f"❌ خطا در تست دیتابیس: {e}")
 
+def migrate_old_data_if_exists():
+    """اگر داده قدیمی دارید، این تابع رو اجرا کنید (اختیاری)"""
+    try:
+        conn = sqlite3.connect('pump_management.db')
+        cursor = conn.cursor()
+        
+        # بررسی آیا جدول pump_history قدیمی وجود دارد
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pump_history_old'")
+        old_table_exists = cursor.fetchone()
+        
+        if old_table_exists:
+            print("🔄 در حال مهاجرت داده‌های قدیمی...")
+            
+            # کپی داده‌ها از جدول قدیمی
+            cursor.execute('''
+                INSERT INTO pump_history 
+                (pump_id, user_id, action, event_time, recorded_time, reason, notes, manual_time)
+                SELECT pump_id, user_id, action, action_time, action_time, reason, notes, manual_time
+                FROM pump_history_old
+            ''')
+            
+            conn.commit()
+            print(f"✅ {cursor.rowcount} رکورد قدیمی مهاجرت داده شد")
+        else:
+            print("ℹ️ داده قدیمی برای مهاجرت پیدا نشد")
+            
+        conn.close()
+        
+    except Exception as e:
+        print(f"❌ خطا در مهاجرت داده‌ها: {e}")
+
 if __name__ == "__main__":
     # اگر دیتابیس قدیمی وجود دارد، پاکش کن
     if os.path.exists('pump_management.db'):
-        os.remove('pump_management.db')
-        print("🗑️ دیتابیس قدیمی حذف شد")
+        choice = input("🗑️ دیتابیس قدیمی وجود دارد. آیا می‌خواهید پاک شود؟ (y/n): ")
+        if choice.lower() == 'y':
+            os.remove('pump_management.db')
+            print("🗑️ دیتابیس قدیمی حذف شد")
+        else:
+            print("❌ عملیات لغو شد")
+            exit()
     
     create_database()
     test_database()
+    
+    # اگر می‌خواهید داده‌های قدیمی رو مهاجرت بدید، این خط رو آنکامنت کنید
+    # migrate_old_data_if_exists()
