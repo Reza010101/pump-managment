@@ -180,11 +180,12 @@ def dashboard():
     
     conn = get_db_connection()
     
+    # 🔽 این کوئری رو اصلاح کن 🔽
     pumps = conn.execute('''
         SELECT p.*, 
                (SELECT action FROM pump_history 
                 WHERE pump_id = p.id 
-                ORDER BY event_time DESC LIMIT 1) as last_action,
+                ORDER BY event_time DESC, id DESC LIMIT 1) as last_action,
                (SELECT COUNT(*) FROM pump_history WHERE pump_id = p.id) as has_history
         FROM pumps p 
         ORDER BY p.pump_number
@@ -197,6 +198,12 @@ def dashboard():
         pump_dict = dict(pump)
         pump_dict['has_history'] = pump['has_history']
         
+        # 🔽 وضعیت رو بر اساس last_action تنظیم کن 🔽
+        if pump['last_action']:
+            pump_dict['status'] = 1 if pump['last_action'] == 'ON' else 0
+        else:
+            pump_dict['status'] = 0  # اگر تاریخچه نداره، خاموش
+            
         if pump['last_change']:
             pump_dict['last_change_jalali'] = gregorian_to_jalali(pump['last_change'])
         else:
@@ -218,7 +225,7 @@ def change_pump_status_detailed():
     
     data = request.get_json()
     pump_id = data.get('pump_id')
-    action = data.get('action')
+    action = data.get('action').upper()  # 🔽 این خط رو تغییر بده 🔽
     reason = data.get('reason')
     notes = data.get('notes', '')
     action_date_jalali = data.get('action_date_jalali')
@@ -236,8 +243,9 @@ def change_pump_status_detailed():
             return jsonify({'success': False, 'error': 'پمپ پیدا نشد'})
         
         current_status = current_pump['status']
-        new_status = True if action == 'on' else False
+        new_status = True if action == 'ON' else False  # 🔽 اینجا هم ON باشه 🔽
         
+        # اینجا سیستم درست چک میکنه چون action الان ON/OFF هست
         if current_status == new_status and get_last_pump_event_time(pump_id):
             return jsonify({
                 'success': False, 
@@ -264,6 +272,7 @@ def change_pump_status_detailed():
             (new_status, event_time, pump_id)
         )
         
+        # 🔽 action اینجا هم به حروف بزرگ ذخیره میشه 🔽
         conn.execute(
             '''INSERT INTO pump_history 
             (pump_id, user_id, action, event_time, recorded_time, reason, notes, manual_time) 
@@ -717,23 +726,31 @@ def download_sample():
     )
 
 def update_pump_current_status():
-    """آپدیت وضعیت فعلی پمپ‌ها بر اساس آخرین رویداد در تاریخچه"""
+    """آپدیت وضعیت فعلی پمپ‌ها بر اساس آخرین رویداد واقعی"""
     conn = get_db_connection()
     
     for pump_id in range(1, 59):
+        # پیدا کردن آخرین رویداد بر اساس event_time (زمان واقعی رویداد)
         last_event = conn.execute('''
             SELECT action, event_time 
             FROM pump_history 
             WHERE pump_id = ? 
-            ORDER BY event_time DESC 
+            ORDER BY event_time DESC, id DESC
             LIMIT 1
         ''', (pump_id,)).fetchone()
         
         if last_event:
-            current_status = 1 if last_event['action'] == 'ON' else 0
+            # آپدیت وضعیت فعلی پمپ بر اساس آخرین رویداد واقعی
+            current_status = 1 if last_event['action'].upper() == 'ON' else 0
             conn.execute(
                 'UPDATE pumps SET status = ?, last_change = ? WHERE id = ?',
                 (current_status, last_event['event_time'], pump_id)
+            )
+        else:
+            # اگر هیچ رویدادی نداره، خاموش باشه
+            conn.execute(
+                'UPDATE pumps SET status = 0, last_change = CURRENT_TIMESTAMP WHERE id = ?',
+                (pump_id,)
             )
     
     conn.commit()
@@ -775,7 +792,7 @@ def status_at_time_report():
         ''', (pump_id, target_datetime_gregorian)).fetchone()
         
         if last_event:
-            status = 'ON' if last_event['action'] == 'ON' else 'OFF'
+            status = 'ON' if last_event['action'].upper() == 'ON' else 'OFF'
             last_change_jalali = gregorian_to_jalali(last_event['event_time'])
             
             if display_type == 'all' or (display_type == 'on' and status == 'ON') or (display_type == 'off' and status == 'OFF'):
@@ -914,7 +931,7 @@ def full_history_report():
             jalali_parts = jalali_datetime.split(' ')
             row_dict['action_date'] = jalali_parts[0]
             row_dict['action_time'] = jalali_parts[1][:5] if len(jalali_parts) > 1 else '00:00'
-            row_dict['action_persian'] = 'روشن' if row['action'] == 'ON' else 'خاموش'
+            row_dict['action_persian'] = 'روشن' if row['action'].upper() == 'ON' else 'خاموش'
             
             formatted_results.append(row_dict)
         
