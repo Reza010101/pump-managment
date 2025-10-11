@@ -7,6 +7,16 @@ def get_all_users():
     conn.close()
     return users
 
+def get_user_by_credentials(username, password):
+    """احراز هویت کاربر"""
+    conn = get_db_connection()
+    user = conn.execute(
+        'SELECT * FROM users WHERE username = ? AND password = ?', 
+        (username, password)
+    ).fetchone()
+    conn.close()
+    return user
+
 def create_new_user(username, password, full_name, role):
     """ایجاد کاربر جدید"""
     conn = get_db_connection()

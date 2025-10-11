@@ -33,3 +33,39 @@ def logout():
     session.clear()
     flash('با موفقیت خارج شدید!', 'success')
     return redirect('/login')
+
+@auth_bp.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    if request.method == 'POST':
+        current_password = request.form['current_password']
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+        
+        # اعتبارسنجی
+        if new_password != confirm_password:
+            flash('پسورد جدید و تکرار آن مطابقت ندارند!', 'error')
+            return render_template('change_password.html')
+        
+        if len(new_password) < 4:
+            flash('پسورد جدید باید حداقل ۴ کاراکتر باشد!', 'error')
+            return render_template('change_password.html')
+        
+        # تغییر پسورد
+        from database.users import change_user_password
+        result = change_user_password(
+            user_id=session['user_id'],
+            current_password=current_password,
+            new_password=new_password
+        )
+        
+        if result['success']:
+            flash('پسورد با موفقیت تغییر کرد!', 'success')
+            return redirect('/')
+        else:
+            flash(result['error'], 'error')
+            return render_template('change_password.html')
+    
+    return render_template('change_password.html')
