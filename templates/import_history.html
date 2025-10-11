@@ -1,0 +1,49 @@
+{% extends "base_dashboard.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">📤 وارد کردن تاریخچه از اکسل</h5>
+            </div>
+            <div class="card-body">
+                <!-- راهنما -->
+                <div class="alert alert-info">
+                    <h6>📋 راهنمای فرمت فایل اکسل:</h6>
+                    <ul class="mb-0">
+                        <li><strong>Pump_Number</strong>: شماره پمپ (1 تا 58)</li>
+                        <li><strong>Action</strong>: ON یا OFF</li>
+                        <li><strong>Date_Jalali</strong>: تاریخ شمسی (مثال: 1403/07/10)</li>
+                        <li><strong>Time_Jalali</strong>: زمان (مثال: 08:30) - الزامی</li>
+                        <li><strong>Reason</strong>: علت تغییر وضعیت</li>
+                        <li><strong>Notes</strong>: توضیحات - اختیاری</li>
+                    </ul>
+                </div>
+
+                <!-- فرم آپلود -->
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">انتخاب فایل اکسل</label>
+                        <input type="file" class="form-control" name="excel_file" accept=".xlsx, .xls" required>
+                        <div class="form-text">فایل باید با فرمت xlsx یا xls باشد</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> آپلود و وارد کردن داده‌ها
+                    </button>
+                    <a href="/" class="btn btn-secondary">بازگشت</a>
+                </form>
+
+                <!-- لینک دانلود نمونه فایل -->
+                <div class="mt-4">
+                    <h6>📥 دانلود فایل نمونه:</h6>
+                    <a href="/admin/download-sample" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-download"></i> دانلود فایل نمونه اکسل
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
