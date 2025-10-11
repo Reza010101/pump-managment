@@ -1,6 +1,13 @@
 from flask import Flask
 from config import get_config
 
+# Import blueprints
+from blueprints.auth import auth_bp
+from blueprints.dashboard import dashboard_bp
+from blueprints.pumps import pumps_bp
+from blueprints.reports import reports_bp
+from blueprints.admin import admin_bp
+
 def create_app():
     """
     ایجاد و پیکربندی برنامه Flask
@@ -8,18 +15,21 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(get_config())
     
-    # ثبت blueprintها (بعداً اضافه می‌شوند)
+    # ثبت blueprintها
     register_blueprints(app)
     
-    # ثبت error handlers (بعداً اضافه می‌شوند)
+    # ثبت error handlers
     register_error_handlers(app)
     
     return app
 
 def register_blueprints(app):
     """ثبت تمام blueprintهای برنامه"""
-    # بعداً import و register می‌شوند
-    pass
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(pumps_bp)
+    app.register_blueprint(reports_bp)
+    app.register_blueprint(admin_bp)
 
 def register_error_handlers(app):
     """ثبت handlerهای خطا"""

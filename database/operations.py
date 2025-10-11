@@ -100,3 +100,43 @@ def update_pump_current_status():
     
     conn.commit()
     conn.close()
+
+    # اضافه کردن این توابع به انتهای فایل operations.py
+
+def get_last_event_before(pump_id, datetime_obj):
+    """پیدا کردن آخرین رویداد قبل از زمان مشخص"""
+    conn = get_db_connection()
+    event = conn.execute('''
+        SELECT action, event_time 
+        FROM pump_history 
+        WHERE pump_id = ? AND event_time < ?
+        ORDER BY event_time DESC 
+        LIMIT 1
+    ''', (pump_id, datetime_obj.strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
+    conn.close()
+    
+    if event:
+        return {
+            'action': event['action'],
+            'event_time': datetime.strptime(event['event_time'], '%Y-%m-%d %H:%M:%S')
+        }
+    return None
+
+def get_pump_events_in_range(pump_id, start_time, end_time):
+    """دریافت رویدادهای یک پمپ در بازه زمانی مشخص"""
+    conn = get_db_connection()
+    events = conn.execute('''
+        SELECT action, event_time 
+        FROM pump_history 
+        WHERE pump_id = ? AND event_time BETWEEN ? AND ?
+        ORDER BY event_time
+    ''', (pump_id, start_time.strftime('%Y-%m-%d %H:%M:%S'), end_time.strftime('%Y-%m-%d %H:%M:%S'))).fetchall()
+    conn.close()
+    
+    result = []
+    for event in events:
+        result.append({
+            'action': event['action'],
+            'event_time': datetime.strptime(event['event_time'], '%Y-%m-%d %H:%M:%S')
+        })
+    return result
