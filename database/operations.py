@@ -140,3 +140,38 @@ def get_pump_events_in_range(pump_id, start_time, end_time):
             'event_time': datetime.strptime(event['event_time'], '%Y-%m-%d %H:%M:%S')
         })
     return result
+
+def get_pump_history_from_db(pump_number):
+    """دریافت تاریخچه یک پمپ خاص از دیتابیس"""
+    conn = get_db_connection()
+    
+    pump = conn.execute(
+        'SELECT id FROM pumps WHERE pump_number = ?', (pump_number,)
+    ).fetchone()
+    
+    if not pump:
+        conn.close()
+        return []
+    
+    pump_id = pump['id']
+    
+    history = conn.execute('''
+        SELECT action, event_time, reason, notes 
+        FROM pump_history 
+        WHERE pump_id = ? 
+        ORDER BY event_time
+    ''', (pump_id,)).fetchall()
+    
+    conn.close()
+    
+    events = []
+    for event in history:
+        events.append({
+            'action': event['action'],
+            'event_time': event['event_time'],
+            'reason': event['reason'],
+            'notes': event['notes'],
+            'source': 'existing'
+        })
+    
+    return events
