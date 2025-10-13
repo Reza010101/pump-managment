@@ -7,6 +7,8 @@ from blueprints.dashboard import dashboard_bp
 from blueprints.pumps import pumps_bp
 from blueprints.reports import reports_bp
 from blueprints.admin import admin_bp
+from blueprints.records_management import records_bp
+
 
 def create_app():
     """
@@ -30,6 +32,8 @@ def register_blueprints(app):
     app.register_blueprint(pumps_bp)
     app.register_blueprint(reports_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(records_bp)
+
 
 def register_error_handlers(app):
     """ثبت handlerهای خطا"""

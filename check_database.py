@@ -1,43 +1,41 @@
-#!/usr/bin/env python3
-"""
-بررسی وضعیت دیتابیس
-"""
 import sqlite3
-import os
 
 def check_database():
-    if not os.path.exists('pump_management.db'):
-        print("❌ فایل دیتابیس وجود ندارد")
-        return False
+    conn = sqlite3.connect('pump_management.db')
+    cursor = conn.cursor()
     
     try:
-        conn = sqlite3.connect('pump_management.db')
-        cursor = conn.cursor()
+        print("🔍 بررسی کامل دیتابیس...")
         
-        # بررسی تعداد پمپ‌ها
-        cursor.execute('SELECT COUNT(*) FROM pumps')
-        pump_count = cursor.fetchone()[0]
+        # لیست تمام جدول‌ها
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
         
-        # بررسی کاربران
-        cursor.execute('SELECT username, role FROM users')
-        users = cursor.fetchall()
+        print(f"📁 جدول‌های موجود ({len(tables)}):")
+        for table in tables:
+            table_name = table[0]
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            count = cursor.fetchone()[0]
+            print(f"  - {table_name}: {count} رکورد")
+            
+        # بررسی وجود جدول‌های اصلی
+        required_tables = ['pumps', 'pump_history', 'users']
+        missing_tables = []
         
-        # بررسی تاریخچه
-        cursor.execute('SELECT COUNT(*) FROM pump_history')
-        history_count = cursor.fetchone()[0]
+        for table in required_tables:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+            if not cursor.fetchone():
+                missing_tables.append(table)
         
-        conn.close()
-        
-        print(f"✅ دیتابیس موجود است")
-        print(f"📊 تعداد پمپ‌ها: {pump_count}")
-        print(f"👤 کاربران: {[f'{u[0]}({u[1]})' for u in users]}")
-        print(f"📈 تعداد رویدادهای تاریخچه: {history_count}")
-        
-        return True
-        
+        if missing_tables:
+            print(f"❌ جدول‌های گمشده: {', '.join(missing_tables)}")
+        else:
+            print("✅ تمام جدول‌های اصلی موجود هستند")
+            
     except Exception as e:
         print(f"❌ خطا در بررسی دیتابیس: {e}")
-        return False
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     check_database()

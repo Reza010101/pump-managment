@@ -1,0 +1,370 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}مدیریت رکوردها{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">🗂️ مدیریت رکوردها</h4>
+            </div>
+            <div class="card-body">
+                <!-- هشدار آموزشی -->
+                <div class="alert alert-info">
+                    <strong>ℹ️ اطلاعات مهم:</strong><br>
+                    شما تنها امکان حذف <strong>آخرین رکوردی که خودتان ثبت کرده‌اید</strong> را دارید. 
+                    رکوردهای دیگر کاربران و رکوردهای قدیمی‌تر از ۴۸ ساعت قابل حذف نیستند.
+                </div>
+
+                <!-- انتخاب پمپ -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">🔍 انتخاب پمپ</label>
+                        <select class="form-select" id="pumpSelect">
+                            <option value="">-- انتخاب پمپ --</option>
+                            {% for pump in pumps %}
+                            <option value="{{ pump.id }}">
+                                پمپ {{ pump.pump_number }} - {{ pump.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- جدول رکوردها -->
+                <div id="recordsTable" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 id="tableTitle"></h5>
+                        <div id="paginationInfo" class="text-muted"></div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ردیف</th>
+                                    <th>تاریخ</th>
+                                    <th>زمان</th>
+                                    <th>وضعیت</th>
+                                    <th>کاربر</th>
+                                    <th>علت</th>
+                                    <th>توضیحات</th>
+                                    <th>عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordsBody">
+                                <!-- رکوردها با JavaScript پر می‌شوند -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- صفحه‌بندی -->
+                    <nav id="paginationNav" aria-label="Page navigation">
+                        <ul class="pagination justify-content-center" id="paginationList">
+                            <!-- صفحات با JavaScript پر می‌شوند -->
+                        </ul>
+                    </nav>
+                </div>
+
+                <!-- پیام خالی -->
+                <div id="emptyMessage" class="text-center text-muted py-4" style="display: none;">
+                    هیچ رکوردی برای نمایش وجود ندارد
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal حذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🗑️ تأیید حذف رکورد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="recordInfo" class="mb-3">
+                    <!-- اطلاعات رکورد با JavaScript پر می‌شود -->
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    با حذف این رکورد، وضعیت پمپ به حالت قبل بازمی‌گردد.
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">🔍 دلیل حذف</label>
+                    <textarea class="form-control" id="deletionReason" rows="3" 
+                              placeholder="دلیل حذف این رکورد را شرح دهید (حداقل ۱۰ کاراکتر)" 
+                              minlength="10" required></textarea>
+                    <div class="form-text">حداقل ۱۰ کاراکتر الزامی است</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">❌ انصراف</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">✅ تأیید حذف</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// کد JavaScript مدیریت رکوردها
+let currentPumpId = null;
+let currentPage = 1;
+let selectedRecordId = null;
+
+// وقتی پمپ انتخاب شد
+document.getElementById('pumpSelect').addEventListener('change', function() {
+    currentPumpId = this.value;
+    currentPage = 1;
+    
+    if (currentPumpId) {
+        loadPumpRecords(currentPumpId, currentPage);
+    } else {
+        hideRecordsTable();
+    }
+});
+
+// بارگذاری رکوردهای پمپ
+async function loadPumpRecords(pumpId, page) {
+    try {
+        showLoading();
+        
+        const response = await fetch(`/api/records/pump/${pumpId}?page=${page}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayRecords(data.records, data.pagination);
+        } else {
+            showError(data.error);
+        }
+    } catch (error) {
+        showError('خطا در دریافت داده‌ها');
+    }
+}
+
+// نمایش رکوردها در جدول
+function displayRecords(records, pagination) {
+    const tbody = document.getElementById('recordsBody');
+    tbody.innerHTML = '';
+    
+    if (records.length === 0) {
+        showEmptyMessage();
+        return;
+    }
+    
+    // عنوان جدول
+    document.getElementById('tableTitle').textContent = 
+        `تاریخچه پمپ ${records[0].pump_number} - ${records[0].pump_name}`;
+    
+    // پر کردن رکوردها
+    records.forEach((record, index) => {
+        const row = document.createElement('tr');
+        
+        // تبدیل تاریخ به شمسی (ساده)
+        const eventDate = new Date(record.event_time);
+        const jalaliDate = eventDate.toLocaleDateString('fa-IR');
+        const jalaliTime = eventDate.toLocaleTimeString('fa-IR', { 
+            hour: '2-digit', minute: '2-digit' 
+        });
+        
+        row.innerHTML = `
+            <td>${((currentPage - 1) * 20) + index + 1}</td>
+            <td>${jalaliDate}</td>
+            <td>${jalaliTime}</td>
+            <td>
+                <span class="badge ${record.action === 'ON' ? 'bg-success' : 'bg-danger'}">
+                    ${record.action === 'ON' ? 'روشن' : 'خاموش'}
+                </span>
+            </td>
+            <td>${record.user_full_name}</td>
+            <td>${record.reason}</td>
+            <td>${record.notes || '-'}</td>
+            <td>
+                ${index === 0 ? 
+                    `<button class="btn btn-sm btn-danger" onclick="openDeleteModal(${record.id})" 
+                      data-bs-toggle="tooltip" data-bs-placement="top">
+                        🗑️ حذف
+                    </button>` 
+                    : ''
+                }
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    // نمایش صفحه‌بندی
+    displayPagination(pagination);
+    showRecordsTable();
+}
+
+// نمایش صفحه‌بندی
+function displayPagination(pagination) {
+    const paginationList = document.getElementById('paginationList');
+    const paginationInfo = document.getElementById('paginationInfo');
+    
+    paginationList.innerHTML = '';
+    paginationInfo.textContent = 
+        `صفحه ${pagination.current_page} از ${pagination.total_pages} - 
+         ${pagination.total_records} رکورد`;
+    
+    // دکمه قبلی
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${pagination.current_page === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `
+        <a class="page-link" href="#" onclick="changePage(${pagination.current_page - 1})">قبلی</a>
+    `;
+    paginationList.appendChild(prevLi);
+    
+    // صفحات
+    for (let i = 1; i <= pagination.total_pages; i++) {
+        const pageLi = document.createElement('li');
+        pageLi.className = `page-item ${i === pagination.current_page ? 'active' : ''}`;
+        pageLi.innerHTML = `
+            <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+        `;
+        paginationList.appendChild(pageLi);
+    }
+    
+    // دکمه بعدی
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${pagination.current_page === pagination.total_pages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `
+        <a class="page-link" href="#" onclick="changePage(${pagination.current_page + 1})">بعدی</a>
+    `;
+    paginationList.appendChild(nextLi);
+}
+
+// تغییر صفحه
+function changePage(page) {
+    currentPage = page;
+    loadPumpRecords(currentPumpId, currentPage);
+}
+
+// باز کردن Modal حذف
+async function openDeleteModal(recordId) {
+    selectedRecordId = recordId;
+    
+    // بررسی امکان حذف
+    const response = await fetch(`/api/records/check-delete/${recordId}`);
+    const data = await response.json();
+    
+    if (data.success && data.can_delete) {
+        // پر کردن اطلاعات رکورد در Modal
+        document.getElementById('recordInfo').innerHTML = `
+            <strong>📋 اطلاعات رکورد:</strong><br>
+            • پمپ: ${currentPumpId}<br>
+            • وضعیت: ${data.record_action === 'ON' ? 'روشن' : 'خاموش'}<br>
+            • کاربر ثبت‌کننده: ${data.original_user}
+        `;
+        
+        // نمایش Modal
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    } else {
+        alert(data.message || 'امکان حذف این رکورد وجود ندارد');
+    }
+}
+
+// تأیید حذف
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+    const deletionReason = document.getElementById('deletionReason').value.trim();
+    
+    if (deletionReason.length < 10) {
+        alert('لطفا دلیل حذف را وارد کنید (حداقل ۱۰ کاراکتر)');
+        return;
+    }
+    
+    try {
+        this.disabled = true;
+        this.innerHTML = '<i class="bi bi-hourglass-split"></i> در حال حذف...';
+        
+        const response = await fetch('/api/records/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                record_id: selectedRecordId,
+                deletion_reason: deletionReason
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // بستن Modal
+            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+            
+            // نمایش پیام موفقیت
+            alert(data.message);
+            
+            // بارگذاری مجدد رکوردها
+            loadPumpRecords(currentPumpId, currentPage);
+            
+            // ریست کردن فرم
+            document.getElementById('deletionReason').value = '';
+        } else {
+            alert('خطا: ' + data.error);
+        }
+    } catch (error) {
+        alert('خطای شبکه: ' + error);
+    } finally {
+        this.disabled = false;
+        this.innerHTML = '✅ تأیید حذف';
+    }
+});
+
+// توابع کمکی
+function showRecordsTable() {
+    document.getElementById('recordsTable').style.display = 'block';
+    document.getElementById('emptyMessage').style.display = 'none';
+}
+
+function hideRecordsTable() {
+    document.getElementById('recordsTable').style.display = 'none';
+    document.getElementById('emptyMessage').style.display = 'none';
+}
+
+function showEmptyMessage() {
+    document.getElementById('recordsTable').style.display = 'none';
+    document.getElementById('emptyMessage').style.display = 'block';
+}
+
+function showLoading() {
+    document.getElementById('recordsBody').innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">در حال بارگذاری...</span>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+function showError(message) {
+    document.getElementById('recordsBody').innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center text-danger">
+                ❌ ${message}
+            </td>
+        </tr>
+    `;
+}
+
+// فعال کردن tooltip‌ها
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
