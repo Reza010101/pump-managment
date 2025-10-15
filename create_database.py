@@ -1,91 +1,142 @@
-#!/usr/bin/env python3
 """
-ساخت دیتابیس برای ساختار جدید
+اسکریپت ایجاد دیتابیس کامل سیستم مدیریت پمپ‌ها
+این فایل هم برای توسعه و هم برای تولید استفاده می‌شود
 """
 import sqlite3
 import os
 from datetime import datetime
 
-def create_database():
-    """ایجاد دیتابیس و جداول"""
-    conn = sqlite3.connect('pump_management.db')
-    cursor = conn.cursor()
+def create_tables(cursor):
+    """ایجاد تمام جدول‌های سیستم"""
     
-    print("📦 در حال ساخت دیتابیس و جداول...")
-    
-    # جدول کاربران
+    # ۱. ایجاد جدول کاربران
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             full_name TEXT NOT NULL,
-            role TEXT DEFAULT 'user',
-            created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_password_change TIMESTAMP  
+            role TEXT NOT NULL,
+            created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+            last_password_change DATETIME
         )
     ''')
+    print("✅ جدول users ایجاد شد")
     
-    # جدول پمپ‌ها
+    # ۲. ایجاد جدول پمپ‌ها
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pumps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id INTEGER PRIMARY KEY,
             pump_number INTEGER UNIQUE NOT NULL,
             name TEXT NOT NULL,
             location TEXT,
             status BOOLEAN DEFAULT 0,
-            last_change TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            last_change DATETIME
         )
     ''')
+    print("✅ جدول pumps ایجاد شد")
     
-    # جدول تاریخچه تغییرات پمپ‌ها
+    # ۳. ایجاد جدول تاریخچه پمپ‌ها
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pump_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            pump_id INTEGER,
-            user_id INTEGER,
+            pump_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
             action TEXT NOT NULL,
-            event_time TIMESTAMP,
-            recorded_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            reason TEXT,
+            event_time DATETIME NOT NULL,
+            recorded_time DATETIME NOT NULL,
+            reason TEXT NOT NULL,
             notes TEXT,
-            manual_time BOOLEAN DEFAULT FALSE,
-            FOREIGN KEY (pump_id) REFERENCES pumps (id),
-            FOREIGN KEY (user_id) REFERENCES users (id)
+            manual_time BOOLEAN DEFAULT 0,
+            FOREIGN KEY (pump_id) REFERENCES pumps(id),
+            FOREIGN KEY (user_id) REFERENCES users(id)
         )
     ''')
+    print("✅ جدول pump_history ایجاد شد")
     
-    # ایجاد کاربران پیشفرض
+    # ۴. ایجاد جدول لاگ حذف (جدید)
     cursor.execute('''
-        INSERT OR IGNORE INTO users (username, password, full_name, role) 
-        VALUES (?, ?, ?, ?)
-    ''', ('admin', '1234', 'مدیر سیستم', 'admin'))
+        CREATE TABLE IF NOT EXISTS deletion_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            deleted_record_id INTEGER,
+            pump_id INTEGER,
+            pump_number INTEGER,
+            original_action TEXT,
+            original_event_time DATETIME,
+            original_reason TEXT,
+            original_notes TEXT,
+            original_user_id INTEGER,
+            original_user_name TEXT,
+            deleted_by_user_id INTEGER,
+            deleted_by_user_name TEXT,
+            deletion_reason TEXT NOT NULL,
+            deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    print("✅ جدول deletion_logs ایجاد شد")
+
+def insert_sample_data(cursor):
+    """درج داده‌های نمونه"""
     
-    cursor.execute('''
-        INSERT OR IGNORE INTO users (username, password, full_name, role) 
+    # کاربران پیشفرض
+    cursor.executemany('''
+        INSERT INTO users (username, password, full_name, role) 
         VALUES (?, ?, ?, ?)
-    ''', ('user1', '1234', 'کاربر نمونه', 'user'))
+    ''', [
+        ('admin', '1234', 'مدیر سیستم', 'admin'),
+        ('user1', '1234', 'کاربر نمونه', 'user')
+    ])
+    print("✅ کاربران پیشفرض اضافه شدند")
     
-    # ایجاد ۵۸ الکتروپمپ
+    # پمپ‌ها
+    pumps_data = []
     for i in range(1, 59):
-        cursor.execute('''
-            INSERT OR IGNORE INTO pumps (pump_number, name, location) 
-            VALUES (?, ?, ?)
-        ''', (i, f'الکتروپمپ {i}', f'موقعیت {i}'))
+        pumps_data.append((
+            i, i, f'پمپ شماره {i}', f'سالن {((i-1)//10)+1}'
+        ))
     
-    conn.commit()
-    conn.close()
+    cursor.executemany('''
+        INSERT INTO pumps (id, pump_number, name, location) 
+        VALUES (?, ?, ?, ?)
+    ''', pumps_data)
+    print("✅ ۵۸ پمپ اضافه شدند")
+
+def main():
+    """تابع اصلی ایجاد دیتابیس"""
+    conn = sqlite3.connect('pump_management.db')
+    conn.row_factory = sqlite3.Row
     
-    print("✅ دیتابیس و جداول با موفقیت ساخته شدند!")
-    print("👤 کاربران پیشفرض:")
-    print("   - admin / 1234 (مدیر)")
-    print("   - user1 / 1234 (کاربر معمولی)")
+    try:
+        print("🚀 در حال ایجاد دیتابیس کامل سیستم مدیریت پمپ‌ها...")
+        print("=" * 50)
+        
+        # ایجاد جدول‌ها
+        create_tables(conn)
+        print("-" * 30)
+        
+        # درج داده‌های نمونه
+        insert_sample_data(conn)
+        print("-" * 30)
+        
+        conn.commit()
+        
+        # گزارش نهایی
+        print("🎉 دیتابیس با موفقیت ایجاد شد!")
+        print("📊 وضعیت نهایی:")
+        for table in ['users', 'pumps', 'pump_history', 'deletion_logs']:
+            count = conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+            print(f"   - {table}: {count} رکورد")
+            
+        print("\n👤 کاربران پیشفرض:")
+        print("   - admin / 1234 (مدیر سیستم)")
+        print("   - user1 / 1234 (کاربر معمولی)")
+        
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ خطا در ایجاد دیتابیس: {e}")
+        raise
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
-    if os.path.exists('pump_management.db'):
-        response = input("🗑️ دیتابیس قدیمی وجود دارد. آیا می‌خواهید جایگزین شود؟ (y/n): ")
-        if response.lower() != 'y':
-            print("❌ عملیات لغو شد")
-            exit()
-    
-    create_database()
+    main()
