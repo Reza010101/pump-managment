@@ -2,8 +2,8 @@ from flask import Blueprint, render_template, request, session, redirect, flash,
 import pandas as pd
 from datetime import datetime
 from database.users import get_all_users, create_new_user, delete_existing_user
-from database.models import get_db_connection  # این خط را اضافه کنید
-from database.operations import update_pump_current_status, get_pump_history_from_db
+from database.models import get_db_connection
+from database.operations import update_pump_current_status
 from utils.date_utils import jalali_to_gregorian
 from utils.export_utils import create_sample_excel_file
 
@@ -211,3 +211,59 @@ def download_sample():
         return redirect('/')
     
     return create_sample_excel_file()
+
+@admin_bp.route('/admin/deletion-logs')
+def deletion_logs():
+    if 'user_id' not in session or session['role'] != 'admin':
+        flash('دسترسی غیر مجاز!', 'error')
+        return redirect('/')
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    conn = get_db_connection()
+    
+    try:
+        # تعداد کل لاگ‌ها
+        total = conn.execute('SELECT COUNT(*) FROM deletion_logs').fetchone()[0]
+        
+        # محاسبه offset
+        offset = (page - 1) * per_page
+        
+        # دریافت لاگ‌ها با صفحه‌بندی
+        logs = conn.execute('''
+            SELECT dl.*, u1.username as deleted_by_username
+            FROM deletion_logs dl
+            JOIN users u1 ON dl.deleted_by_user_id = u1.id
+            ORDER BY dl.deleted_at DESC
+            LIMIT ? OFFSET ?
+        ''', (per_page, offset)).fetchall()
+        
+        # تبدیل تاریخ‌ها به شمسی
+        from utils.date_utils import gregorian_to_jalali
+        logs_with_jalali = []
+        for log in logs:
+            log_dict = dict(log)
+            if log['deleted_at']:
+                jalali_datetime = gregorian_to_jalali(log['deleted_at'])
+                parts = jalali_datetime.split(' ')
+                log_dict['deleted_at_jalali_date'] = parts[0]
+                log_dict['deleted_at_jalali_time'] = parts[1] if len(parts) > 1 else '00:00:00'
+            logs_with_jalali.append(log_dict)
+        
+        pagination = {
+            'total': total,
+            'per_page': per_page,
+            'current_page': page,
+            'total_pages': (total + per_page - 1) // per_page
+        }
+        
+        return render_template('deletion_logs.html', 
+                             logs=logs_with_jalali, 
+                             pagination=pagination)
+        
+    except Exception as e:
+        flash(f'خطا در دریافت لاگ‌ها: {str(e)}', 'error')
+        return render_template('deletion_logs.html', logs=[], pagination={})
+    finally:
+        conn.close()

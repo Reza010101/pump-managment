@@ -1,0 +1,133 @@
+{% extends "base_dashboard.html" %}
+
+{% block title %}لاگ رکوردهای حذف شده{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">📋 لاگ رکوردهای حذف شده</h4>
+                {% if logs %}
+                <div>
+                    <span class="badge bg-primary">{{ pagination.total }} رکورد</span>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if logs %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>تاریخ حذف</th>
+                                <th>پمپ</th>
+                                <th>وضعیت اصلی</th>
+                                <th>کاربر ثبت‌کننده</th>
+                                <th>کاربر حذف‌کننده</th>
+                                <th>دلیل حذف</th>
+                                <th>عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>
+                                    <div>{{ log.deleted_at_jalali_date }}</div>
+                                    <small class="text-muted">{{ log.deleted_at_jalali_time }}</small>
+                                </td>
+                                <td>
+                                    <strong>پمپ {{ log.pump_number }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge {% if log.original_action == 'ON' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ 'روشن' if log.original_action == 'ON' else 'خاموش' }}
+                                    </span>
+                                </td>
+                                <td>{{ log.original_user_name }}</td>
+                                <td>{{ log.deleted_by_user_name }}</td>
+                                <td>
+                                    <span title="{{ log.deletion_reason }}">
+                                        {{ log.deletion_reason[:50] }}{% if log.deletion_reason|length > 50 %}...{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" 
+                                            onclick="showDeletionDetails({{ log.id }})">
+                                        جزئیات
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- صفحه‌بندی -->
+                {% if pagination.total_pages > 1 %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item {% if pagination.current_page == 1 %}disabled{% endif %}">
+                            <a class="page-link" href="?page={{ pagination.current_page - 1 }}">قبلی</a>
+                        </li>
+                        
+                        {% for page in range(1, pagination.total_pages + 1) %}
+                        <li class="page-item {% if page == pagination.current_page %}active{% endif %}">
+                            <a class="page-link" href="?page={{ page }}">{{ page }}</a>
+                        </li>
+                        {% endfor %}
+                        
+                        <li class="page-item {% if pagination.current_page == pagination.total_pages %}disabled{% endif %}">
+                            <a class="page-link" href="?page={{ pagination.current_page + 1 }}">بعدی</a>
+                        </li>
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-journal-x" style="font-size: 3rem;"></i>
+                    <p class="mt-3">هیچ لاگ حذفی وجود ندارد</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal جزئیات -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📄 جزئیات کامل حذف</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- محتوا با JavaScript پر می‌شود -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showDeletionDetails(logId) {
+    // در اینجا می‌توانید از AJAX برای دریافت جزئیات کامل استفاده کنید
+    // فعلاً یک پیام ساده نمایش می‌دهیم
+    document.getElementById('modalBody').innerHTML = `
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            جزئیات کامل این رکورد حذف شده در نسخه‌های بعدی اضافه خواهد شد.
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
+}
+</script>
+{% endblock %}
