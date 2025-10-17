@@ -1,0 +1,172 @@
+<!-- templates/edit_well.html -->
+{% extends "base_dashboard.html" %}
+
+{% block title %}ویرایش چاه {{ well.well_number }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-pencil"></i>
+                    ویرایش اطلاعات چاه {{ well.well_number }} - {{ well.name }}
+                </h4>
+                <a href="/wells/{{ well.id }}" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-arrow-right"></i> بازگشت
+                </a>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <!-- اطلاعات اصلی -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">📝 اطلاعات اصلی</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">نام چاه</label>
+                            <input type="text" class="form-control" name="name" 
+                                   value="{{ well.name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">موقعیت</label>
+                            <input type="text" class="form-control" name="location" 
+                                   value="{{ well.location or '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">وضعیت چاه</label>
+                            <select class="form-select" name="status">
+                                <option value="active" {% if well.status == 'active' %}selected{% endif %}>فعال</option>
+                                <option value="maintenance" {% if well.status == 'maintenance' %}selected{% endif %}>در حال تعمیر</option>
+                                <option value="inactive" {% if well.status == 'inactive' %}selected{% endif %}>غیرفعال</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- اطلاعات فنی چاه -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">🏗️ اطلاعات فنی چاه</h5>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">عمق کل چاه (متر)</label>
+                            <input type="text" class="form-control" name="total_depth" 
+                                   value="{{ well.total_depth or '' }}" placeholder="مثال: 150">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">عمق نصب پمپ (متر)</label>
+                            <input type="text" class="form-control" name="pump_installation_depth" 
+                                   value="{{ well.pump_installation_depth or '' }}" placeholder="مثال: 120">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">قطر چاه (اینچ)</label>
+                            <input type="text" class="form-control" name="well_diameter" 
+                                   value="{{ well.well_diameter or '' }}" placeholder="مثال: 8">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">نوع Casing</label>
+                            <input type="text" class="form-control" name="casing_type" 
+                                   value="{{ well.casing_type or '' }}" placeholder="مثال: PVC, Steel">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">تاریخ نصب چاه</label>
+                            <input type="date" class="form-control" name="well_installation_date" 
+                                   value="{{ well.well_installation_date or '' }}">
+                        </div>
+                    </div>
+
+                    <!-- اطلاعات پمپ -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">🔧 اطلاعات پمپ</h5>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">برند پمپ</label>
+                            <input type="text" class="form-control" name="current_pump_brand" 
+                                   value="{{ well.current_pump_brand or '' }}" placeholder="مثال: Grundfos">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">مدل پمپ</label>
+                            <input type="text" class="form-control" name="current_pump_model" 
+                                   value="{{ well.current_pump_model or '' }}" placeholder="مثال: SP 8-22">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">قدرت پمپ (اسب)</label>
+                            <input type="text" class="form-control" name="current_pump_power" 
+                                   value="{{ well.current_pump_power or '' }}" placeholder="مثال: 10 HP">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">فاز</label>
+                            <select class="form-select" name="current_pump_phase">
+                                <option value="">انتخاب کنید</option>
+                                <option value="تک فاز" {% if well.current_pump_phase == 'تک فاز' %}selected{% endif %}>تک فاز</option>
+                                <option value="سه فاز" {% if well.current_pump_phase == 'سه فاز' %}selected{% endif %}>سه فاز</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">تاریخ نصب تجهیزات</label>
+                            <input type="date" class="form-control" name="current_equipment_installation_date" 
+                                   value="{{ well.current_equipment_installation_date or '' }}">
+                        </div>
+                    </div>
+
+                    <!-- اطلاعات کابل و لوله -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">🔌 اطلاعات کابل و لوله</h5>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">مشخصات کابل</label>
+                            <input type="text" class="form-control" name="current_cable_specs" 
+                                   value="{{ well.current_cable_specs or '' }}" 
+                                   placeholder="مثال: کابل 4x16mm² - 400V">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">جنس لوله</label>
+                            <input type="text" class="form-control" name="current_pipe_material" 
+                                   value="{{ well.current_pipe_material or '' }}" 
+                                   placeholder="مثال: PVC, گالوانیزه">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">مشخصات لوله</label>
+                            <input type="text" class="form-control" name="current_pipe_specs" 
+                                   value="{{ well.current_pipe_specs or '' }}" 
+                                   placeholder="مثال: 3 اینچ">
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">مشخصات تابلو</label>
+                            <input type="text" class="form-control" name="current_panel_specs" 
+                                   value="{{ well.current_panel_specs or '' }}" 
+                                   placeholder="مثال: تابلو کنترل هوشمند - 400A">
+                        </div>
+                    </div>
+
+                    <!-- توضیحات -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="border-bottom pb-2">📝 توضیحات</h5>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">توضیحات و یادداشت‌ها</label>
+                            <textarea class="form-control" name="notes" rows="4" 
+                                      placeholder="هرگونه توضیح یا یادداشت اضافی...">{{ well.notes or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- دکمه‌های action -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <a href="/wells/{{ well.id }}" class="btn btn-secondary">انصراف</a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg"></i> ذخیره تغییرات
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

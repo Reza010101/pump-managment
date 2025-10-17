@@ -1,0 +1,249 @@
+<!-- templates/well_details.html -->
+{% extends "base_dashboard.html" %}
+
+{% block title %}جزئیات چاه {{ well.well_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- هدر چاه -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-water"></i>
+                    چاه {{ well.well_number }} - {{ well.name }}
+                </h4>
+                <div class="btn-group">
+                    <a href="/wells/{{ well.id }}/edit" class="btn btn-warning btn-sm">
+                        <i class="bi bi-pencil"></i> ویرایش
+                    </a>
+                    <a href="/wells/{{ well.id }}/maintenance" class="btn btn-primary btn-sm">
+                        <i class="bi bi-tools"></i> تعمیرات
+                    </a>
+                    <a href="/wells" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-arrow-right"></i> بازگشت
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>موقعیت:</strong><br>
+                        {{ well.location or 'ثبت نشده' }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>وضعیت پمپ:</strong><br>
+                        <span class="badge {% if well.pump_status %}bg-success{% else %}bg-danger{% endif %}">
+                            {% if well.pump_status %}
+                                <i class="bi bi-power"></i> روشن
+                            {% else %}
+                                <i class="bi bi-power-off"></i> خاموش
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>وضعیت چاه:</strong><br>
+                        <span class="badge 
+                            {% if well.status == 'active' %}bg-success
+                            {% elif well.status == 'maintenance' %}bg-warning
+                            {% else %}bg-secondary{% endif %}">
+                            {% if well.status == 'active' %}فعال
+                            {% elif well.status == 'maintenance' %}در حال تعمیر
+                            {% else %}غیرفعال{% endif %}
+                        </span>
+                    </div>
+                    <div class="col-md-3">
+                        <strong>تاریخ ایجاد:</strong><br>
+                        {{ well.created_at_jalali or '-' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- اطلاعات فنی -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📊 اطلاعات فنی چاه</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <td width="40%"><strong>عمق کل چاه:</strong></td>
+                                <td>{{ well.total_depth or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>عمق نصب پمپ:</strong></td>
+                                <td>{{ well.pump_installation_depth or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>قطر چاه:</strong></td>
+                                <td>{{ well.well_diameter or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>نوع Casing:</strong></td>
+                                <td>{{ well.casing_type or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>تاریخ نصب چاه:</strong></td>
+                                <td>{{ well.well_installation_date or 'ثبت نشده' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- اطلاعات پمپ -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">🔧 اطلاعات پمپ</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <td width="40%"><strong>برند پمپ:</strong></td>
+                                <td>{{ well.current_pump_brand or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>مدل پمپ:</strong></td>
+                                <td>{{ well.current_pump_model or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>قدرت پمپ:</strong></td>
+                                <td>{{ well.current_pump_power or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>فاز:</strong></td>
+                                <td>{{ well.current_pump_phase or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>تاریخ نصب تجهیزات:</strong></td>
+                                <td>{{ well.current_equipment_installation_date or 'ثبت نشده' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- اطلاعات کابل و لوله -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">🔌 مشخصات کابل</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>{{ well.current_cable_specs or 'ثبت نشده' }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📏 مشخصات لوله</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <td width="40%"><strong>جنس لوله:</strong></td>
+                                <td>{{ well.current_pipe_material or 'ثبت نشده' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>مشخصات لوله:</strong></td>
+                                <td>{{ well.current_pipe_specs or 'ثبت نشده' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- آمار و تاریخچه -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📈 آمار چاه</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <td width="60%"><strong>تعداد عملیات تعمیرات:</strong></td>
+                                <td>{{ statistics.maintenance_count or 0 }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>آخرین تعمیرات:</strong></td>
+                                <td>
+                                    {% if statistics.last_maintenance %}
+                                        {{ statistics.last_maintenance.operation_type }} - 
+                                        {{ statistics.last_maintenance.operation_date }}
+                                    {% else %}
+                                        ثبت نشده
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>وضعیت فعلی پمپ:</strong></td>
+                                <td>
+                                    <span class="badge {% if statistics.pump_status %}bg-success{% else %}bg-danger{% endif %}">
+                                        {% if statistics.pump_status %}روشن{% else %}خاموش{% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تاریخچه تعمیرات -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">🛠️ آخرین تعمیرات</h5>
+                        <a href="/wells/{{ well.id }}/maintenance" class="btn btn-primary btn-sm">
+                            مشاهده همه
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        {% if maintenance_operations %}
+                            <div class="list-group list-group-flush">
+                                {% for operation in maintenance_operations[:3] %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ operation.operation_type }}</h6>
+                                        <small>{{ operation.operation_date_jalali or operation.operation_date }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ operation.description[:100] }}{% if operation.description|length > 100 %}...{% endif %}</p>
+                                    <small>توسط: {{ operation.recorded_by_name }}</small>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted text-center">هیچ عملیات تعمیراتی ثبت نشده است</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- توضیحات -->
+        {% if well.notes %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📝 توضیحات</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>{{ well.notes }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

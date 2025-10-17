@@ -1,0 +1,205 @@
+<!-- templates/wells_management.html -->
+{% extends "base_dashboard.html" %}
+
+{% block title %}مدیریت چاه‌ها{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">🏭 مدیریت چاه‌ها</h4>
+                <div>
+                    <button class="btn btn-outline-primary btn-sm" onclick="toggleSearch()">
+                        <i class="bi bi-search"></i> جستجو
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- بخش جستجو -->
+                <div id="searchSection" class="mb-4" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <input type="text" id="searchInput" class="form-control" placeholder="جستجو بر اساس شماره چاه، نام، موقعیت، برند پمپ...">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary w-100" onclick="performSearch()">
+                                <i class="bi bi-search"></i> اجرای جستجو
+                            </button>
+                        </div>
+                    </div>
+                    <div id="searchResults" class="mt-3"></div>
+                </div>
+
+                <!-- آمار کلی -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body text-center py-3">
+                                <h4>{{ wells|length }}</h4>
+                                <small>تعداد کل چاه‌ها</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body text-center py-3">
+                                <h4>{{ wells|selectattr("pump_status")|selectattr("pump_status")|list|length }}</h4>
+                                <small>چاه‌های فعال</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body text-center py-3">
+                                <h4>{{ wells|selectattr("status")|select("equalto", "maintenance")|list|length }}</h4>
+                                <small>در حال تعمیر</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body text-center py-3">
+                                <h4>{{ wells|selectattr("created_at_jalali")|list|length }}</h4>
+                                <small>چاه‌های ثبت شده</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- جدول چاه‌ها -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>شماره چاه</th>
+                                <th>نام</th>
+                                <th>موقعیت</th>
+                                <th>وضعیت پمپ</th>
+                                <th>برند پمپ</th>
+                                <th>قدرت پمپ</th>
+                                <th>تاریخ ایجاد</th>
+                                <th>عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for well in wells %}
+                            <tr>
+                                <td>
+                                    <strong>چاه {{ well.well_number }}</strong>
+                                </td>
+                                <td>{{ well.name }}</td>
+                                <td>{{ well.location or '-' }}</td>
+                                <td>
+                                    <span class="badge {% if well.pump_status %}bg-success{% else %}bg-danger{% endif %}">
+                                        {% if well.pump_status %}
+                                            <i class="bi bi-power"></i> روشن
+                                        {% else %}
+                                            <i class="bi bi-power-off"></i> خاموش
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>{{ well.current_pump_brand or '-' }}</td>
+                                <td>{{ well.current_pump_power or '-' }}</td>
+                                <td>{{ well.created_at_jalali or '-' }}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/wells/{{ well.id }}" class="btn btn-info" 
+                                           data-bs-toggle="tooltip" title="مشاهده جزئیات">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="/wells/{{ well.id }}/edit" class="btn btn-warning"
+                                           data-bs-toggle="tooltip" title="ویرایش اطلاعات">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="/wells/{{ well.id }}/maintenance" class="btn btn-primary"
+                                           data-bs-toggle="tooltip" title="مدیریت تعمیرات">
+                                            <i class="bi bi-tools"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- پیام خالی -->
+                {% if not wells %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-water" style="font-size: 3rem;"></i>
+                    <p class="mt-3">هیچ چاهی ثبت نشده است</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSearch() {
+    const searchSection = document.getElementById('searchSection');
+    searchSection.style.display = searchSection.style.display === 'none' ? 'block' : 'none';
+}
+
+async function performSearch() {
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    const resultsDiv = document.getElementById('searchResults');
+    
+    if (searchTerm.length < 2) {
+        resultsDiv.innerHTML = '<div class="alert alert-warning">حداقل ۲ کاراکتر برای جستجو نیاز است</div>';
+        return;
+    }
+    
+    try {
+        resultsDiv.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+        
+        const response = await fetch(`/api/wells/search?q=${encodeURIComponent(searchTerm)}`);
+        const data = await response.json();
+        
+        if (data.success && data.results.length > 0) {
+            let html = '<div class="alert alert-success">' + data.results.length + ' نتیجه یافت شد</div>';
+            html += '<div class="list-group">';
+            
+            data.results.forEach(well => {
+                html += `
+                    <a href="/wells/${well.id}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">چاه ${well.well_number} - ${well.name}</h6>
+                            <span class="badge ${well.pump_status ? 'bg-success' : 'bg-danger'}">
+                                ${well.pump_status ? 'روشن' : 'خاموش'}
+                            </span>
+                        </div>
+                        <p class="mb-1">${well.location || 'بدون موقعیت'}</p>
+                    </a>
+                `;
+            });
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        } else {
+            resultsDiv.innerHTML = '<div class="alert alert-warning">هیچ نتیجه‌ای یافت نشد</div>';
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = '<div class="alert alert-danger">خطا در جستجو</div>';
+    }
+}
+
+// فعال کردن جستجو با Enter
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        performSearch();
+    }
+});
+
+// فعال کردن tooltip‌ها
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

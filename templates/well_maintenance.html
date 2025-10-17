@@ -1,0 +1,234 @@
+<!-- templates/well_maintenance.html -->
+{% extends "base_dashboard.html" %}
+
+{% block title %}تعمیرات چاه {{ well.well_number }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- هدر -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-tools"></i>
+                    مدیریت تعمیرات - چاه {{ well.well_number }} - {{ well.name }}
+                </h4>
+                <div class="btn-group">
+                    <a href="/wells/{{ well.id }}" class="btn btn-info btn-sm">
+                        <i class="bi bi-eye"></i> مشاهده چاه
+                    </a>
+                    <a href="/wells" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-arrow-right"></i> لیست چاه‌ها
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- فرم ثبت تعمیرات -->
+            <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">➕ ثبت عملیات تعمیرات جدید</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">نوع عملیات</label>
+                                <select class="form-select" name="operation_type" required>
+                                    <option value="">انتخاب کنید</option>
+                                    <option value="تعمیرات دوره‌ای">تعمیرات دوره‌ای</option>
+                                    <option value="تعویض پمپ">تعویض پمپ</option>
+                                    <option value="تعمیر الکتروموتور">تعمیر الکتروموتور</option>
+                                    <option value="تعویض کابل">تعویض کابل</option>
+                                    <option value="تعویض لوله">تعویض لوله</option>
+                                    <option value="تمیزکاری چاه">تمیزکاری چاه</option>
+                                    <option value="بازرسی فنی">بازرسی فنی</option>
+                                    <option value="سایر">سایر</option>
+                                </select>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">تاریخ عملیات</label>
+                                    <input type="date" class="form-control" name="operation_date" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">زمان عملیات</label>
+                                    <input type="time" class="form-control" name="operation_time">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">شرح عملیات</label>
+                                <textarea class="form-control" name="description" rows="3" 
+                                          placeholder="شرح کامل عملیات انجام شده..." required></textarea>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">قطعات مصرفی</label>
+                                    <input type="text" class="form-control" name="parts_used" 
+                                           placeholder="مثال: پمپ جدید، کابل، یاتاقان...">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">مدت زمان (دقیقه)</label>
+                                    <input type="number" class="form-control" name="duration_minutes" 
+                                           placeholder="مدت زمان انجام عملیات">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">توسط</label>
+                                <input type="text" class="form-control" name="performed_by" 
+                                       placeholder="نام تکنسین یا شرکت اجرا کننده">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">وضعیت</label>
+                                <select class="form-select" name="status">
+                                    <option value="completed">تکمیل شده</option>
+                                    <option value="in-progress">در حال انجام</option>
+                                    <option value="pending">در انتظار</option>
+                                    <option value="cancelled">لغو شده</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">یادداشت‌ها</label>
+                                <textarea class="form-control" name="notes" rows="2" 
+                                          placeholder="یادداشت‌های اضافی..."></textarea>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-check-lg"></i> ثبت عملیات
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تاریخچه تعمیرات -->
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📋 تاریخچه عملیات تعمیرات</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if maintenance_operations %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>تاریخ</th>
+                                        <th>نوع عملیات</th>
+                                        <th>شرح</th>
+                                        <th>وضعیت</th>
+                                        <th>عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for operation in maintenance_operations %}
+                                    <tr>
+                                        <td>
+                                            <small>{{ operation.operation_date_jalali or operation.operation_date }}</small>
+                                            {% if operation.operation_time %}
+                                            <br><small class="text-muted">{{ operation.operation_time }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ operation.operation_type }}</span>
+                                        </td>
+                                        <td>
+                                            <span title="{{ operation.description }}">
+                                                {{ operation.description[:50] }}{% if operation.description|length > 50 %}...{% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge 
+                                                {% if operation.status == 'completed' %}bg-success
+                                                {% elif operation.status == 'in-progress' %}bg-warning
+                                                {% elif operation.status == 'pending' %}bg-secondary
+                                                {% else %}bg-danger{% endif %}">
+                                                {% if operation.status == 'completed' %}تکمیل
+                                                {% elif operation.status == 'in-progress' %}در حال انجام
+                                                {% elif operation.status == 'pending' %}در انتظار
+                                                {% else %}لغو شده{% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-info" 
+                                                    onclick="showMaintenanceDetails({{ operation.id }})"
+                                                    data-bs-toggle="tooltip" title="مشاهده جزئیات">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-tools" style="font-size: 3rem;"></i>
+                            <p class="mt-3">هیچ عملیات تعمیراتی ثبت نشده است</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal جزئیات تعمیرات -->
+<div class="modal fade" id="maintenanceDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">جزئیات عملیات تعمیرات</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="maintenanceDetailsBody">
+                <!-- محتوا با JavaScript پر می‌شود -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">بستن</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showMaintenanceDetails(operationId) {
+    // در اینجا می‌توانید از AJAX برای دریافت جزئیات کامل استفاده کنید
+    // فعلاً یک پیام ساده نمایش می‌دهیم
+    document.getElementById('maintenanceDetailsBody').innerHTML = `
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            جزئیات کامل این عملیات تعمیرات در نسخه‌های بعدی اضافه خواهد شد.
+        </div>
+        <div class="text-center">
+            <p>این قابلیت به زودی اضافه خواهد شد...</p>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
+    modal.show();
+}
+
+// فعال کردن tooltip‌ها
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // تنظیم تاریخ امروز به عنوان پیشفرض
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelector('input[name="operation_date"]').value = today;
+});
+</script>
+{% endblock %}
