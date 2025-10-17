@@ -74,6 +74,54 @@ def create_tables(cursor):
         )
     ''')
     print("✅ جدول deletion_logs ایجاد شد")
+    # ایجاد جدول‌های مدیریت چاه‌ها
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS wells (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            well_number INTEGER UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            location TEXT,
+            total_depth TEXT,
+            pump_installation_depth TEXT,
+            well_diameter TEXT,
+            casing_type TEXT,
+            current_pump_brand TEXT,
+            current_pump_model TEXT,
+            current_pump_power TEXT,
+            current_pump_phase TEXT,
+            current_cable_specs TEXT,
+            current_pipe_material TEXT,
+            current_pipe_specs TEXT,
+            current_panel_specs TEXT,
+            well_installation_date DATE,
+            current_equipment_installation_date DATE,
+            status TEXT DEFAULT 'active',
+            notes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    print("✅ جدول wells ایجاد شد")
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS maintenance_operations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            well_id INTEGER NOT NULL,
+            recorded_by_user_id INTEGER NOT NULL,
+            operation_type TEXT NOT NULL,
+            operation_date DATE NOT NULL,
+            operation_time TIME,
+            description TEXT NOT NULL,
+            parts_used TEXT,
+            duration_minutes INTEGER,
+            performed_by TEXT,
+            status TEXT DEFAULT 'completed',
+            notes TEXT,
+            FOREIGN KEY (well_id) REFERENCES wells(id),
+            FOREIGN KEY (recorded_by_user_id) REFERENCES users(id)
+        )
+    ''')
+    print("✅ جدول maintenance_operations ایجاد شد")
 
 def insert_sample_data(cursor):
     """درج داده‌های نمونه"""
