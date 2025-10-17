@@ -6,6 +6,7 @@ from database.models import get_db_connection
 from database.operations import update_pump_current_status
 from utils.date_utils import jalali_to_gregorian
 from utils.export_utils import create_sample_excel_file
+from database.operations import get_pump_history_from_db
 
 admin_bp = Blueprint('admin', __name__)
 

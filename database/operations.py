@@ -331,3 +331,44 @@ def get_pump_records_with_pagination(pump_id, page=1, per_page=20):
         return {'records': [], 'total_records': 0, 'total_pages': 0, 'error': str(e)}
     finally:
         conn.close()
+
+def get_pump_history_from_db(pump_number):
+    """دریافت تاریخچه یک پمپ خاص از دیتابیس"""
+    conn = get_db_connection()
+    
+    try:
+        # پیدا کردن pump_id از pump_number
+        pump = conn.execute(
+            'SELECT id FROM pumps WHERE pump_number = ?', (pump_number,)
+        ).fetchone()
+        
+        if not pump:
+            return []
+        
+        pump_id = pump['id']
+        
+        # دریافت تاریخچه پمپ
+        history = conn.execute('''
+            SELECT action, event_time, reason, notes 
+            FROM pump_history 
+            WHERE pump_id = ? 
+            ORDER BY event_time
+        ''', (pump_id,)).fetchall()
+        
+        events = []
+        for event in history:
+            events.append({
+                'action': event['action'],
+                'event_time': event['event_time'],
+                'reason': event['reason'],
+                'notes': event['notes'],
+                'source': 'existing'
+            })
+        
+        return events
+        
+    except Exception as e:
+        print(f"Error getting pump history: {e}")
+        return []
+    finally:
+        conn.close()
