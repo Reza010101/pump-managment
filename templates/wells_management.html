@@ -36,7 +36,7 @@
                     <div class="col-md-3">
                         <div class="card bg-primary text-white">
                             <div class="card-body text-center py-3">
-                                <h4>{{ wells|length }}</h4>
+                                <h4>{{ stats.total }}</h4>
                                 <small>تعداد کل چاه‌ها</small>
                             </div>
                         </div>
@@ -44,24 +44,24 @@
                     <div class="col-md-3">
                         <div class="card bg-success text-white">
                             <div class="card-body text-center py-3">
-                                <h4>{{ wells|selectattr("pump_status")|selectattr("pump_status")|list|length }}</h4>
+                                <h4>{{ stats.active }}</h4>
                                 <small>چاه‌های فعال</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body text-center py-3">
+                                <h4>{{ stats.inactive }}</h4>
+                                <small>چاه‌های غیرفعال</small>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
                         <div class="card bg-warning text-white">
                             <div class="card-body text-center py-3">
-                                <h4>{{ wells|selectattr("status")|select("equalto", "maintenance")|list|length }}</h4>
+                                <h4>{{ stats.maintenance }}</h4>
                                 <small>در حال تعمیر</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card bg-info text-white">
-                            <div class="card-body text-center py-3">
-                                <h4>{{ wells|selectattr("created_at_jalali")|list|length }}</h4>
-                                <small>چاه‌های ثبت شده</small>
                             </div>
                         </div>
                     </div>
@@ -87,13 +87,27 @@
                                     <strong>چاه {{ well.well_number }}</strong>
                                 </td>
                                 <td>
-                                    <span class="badge {% if well.pump_status %}bg-success{% else %}bg-danger{% endif %}">
-                                        {% if well.pump_status %}
-                                            <i class="bi bi-power"></i> روشن
-                                        {% else %}
-                                            <i class="bi bi-power-off"></i> خاموش
-                                        {% endif %}
-                                    </span>
+                                    {% if well.status == 'active' %}
+                                        <span class="badge {% if well.pump_status %}bg-success{% else %}bg-danger{% endif %}">
+                                            {% if well.pump_status %}
+                                                <i class="bi bi-power"></i> روشن
+                                            {% else %}
+                                                <i class="bi bi-power-off"></i> خاموش
+                                            {% endif %}
+                                        </span>
+                                    {% elif well.status == 'inactive' %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-x-circle"></i> غیرفعال
+                                        </span>
+                                    {% elif well.status == 'maintenance' %}
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-tools"></i> در حال تعمیر
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-dark">
+                                            <i class="bi bi-question-circle"></i> نامشخص
+                                        </span>
+                                    {% endif %}
                                 </td>
                                 <td>{{ well.current_pump_brand or '-' }}</td>
                                 <td>{{ well.current_pump_power or '-' }}</td>

@@ -43,14 +43,27 @@
                     </div>
                     <div class="col-md-3">
                         <strong>وضعیت چاه:</strong><br>
-                        <span class="badge 
-                            {% if well.status == 'active' %}bg-success
-                            {% elif well.status == 'maintenance' %}bg-warning
-                            {% else %}bg-secondary{% endif %}">
-                            {% if well.status == 'active' %}فعال
-                            {% elif well.status == 'maintenance' %}در حال تعمیر
-                            {% else %}غیرفعال{% endif %}
-                        </span>
+                        {% if well.status == 'active' %}
+                            <span class="badge {% if well.pump_status %}bg-success{% else %}bg-danger{% endif %}">
+                                {% if well.pump_status %}
+                                    <i class="bi bi-power"></i> روشن
+                                {% else %}
+                                    <i class="bi bi-power-off"></i> خاموش
+                                {% endif %}
+                            </span>
+                        {% elif well.status == 'inactive' %}
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-x-circle"></i> غیرفعال
+                            </span>
+                        {% elif well.status == 'maintenance' %}
+                            <span class="badge bg-warning">
+                                <i class="bi bi-tools"></i> در حال تعمیر
+                            </span>
+                        {% else %}
+                            <span class="badge bg-dark">
+                                <i class="bi bi-question-circle"></i> نامشخص
+                            </span>
+                        {% endif %}
                     </div>
                     <div class="col-md-3">
                         <strong>تاریخ ایجاد:</strong><br>
