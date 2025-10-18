@@ -20,6 +20,12 @@ def wells_management():
     # دریافت لیست چاه‌ها
     wells = get_all_wells()
     
+     # محاسبه آمار
+    total_wells = len(wells)
+    active_wells = len([w for w in wells if w['status'] == 'active'])
+    inactive_wells = len([w for w in wells if w['status'] == 'inactive'])
+    maintenance_wells = len([w for w in wells if w['status'] == 'maintenance'])
+
     # تبدیل تاریخ‌ها به شمسی
     wells_with_jalali = []
     for well in wells:
@@ -30,7 +36,14 @@ def wells_management():
             well_dict['created_at_jalali'] = parts[0]
         wells_with_jalali.append(well_dict)
     
-    return render_template('wells_management.html', wells=wells_with_jalali)
+    return render_template('wells_management.html', 
+                         wells=wells_with_jalali,
+                         stats={
+                             'total': total_wells,
+                             'active': active_wells,
+                             'inactive': inactive_wells,
+                             'maintenance': maintenance_wells
+                         })
 
 @wells_bp.route('/wells/<int:well_id>')
 def well_details(well_id):

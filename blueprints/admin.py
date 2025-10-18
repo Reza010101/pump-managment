@@ -164,6 +164,16 @@ def import_history():
                                 ).fetchone()
                                 
                                 if pump:
+                                    well = conn.execute('''
+                                        SELECT w.status 
+                                        FROM wells w 
+                                        WHERE w.pump_id = ?
+                                    ''', (pump['id'],)).fetchone()
+                                    
+                                    if well and well['status'] != 'active':
+                                        error_messages.append(f'خط {event["row_index"]}: پمپ {pump_num} - چاه در حالت "{well["status"]}" است و امکان ثبت رکورد ندارد')
+                                        error_count += 1
+                                        continue
                                     conn.execute(
                                     '''INSERT INTO pump_history 
                                     (pump_id, user_id, action, event_time, recorded_time, reason, notes, manual_time) 

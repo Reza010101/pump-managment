@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, session, redirect
 from database.models import get_all_pumps
 from utils.date_utils import gregorian_to_jalali
 from datetime import datetime
+from database.wells_operations import get_well_by_pump_id
 
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -12,12 +13,21 @@ def dashboard():
         return redirect('/login')
     
     pumps = get_all_pumps()
-    pumps_with_jalali = []
+    pumps_with_well_status = []
     
     for pump in pumps:
         pump_dict = dict(pump)
         pump_dict['has_history'] = pump['has_history']
         
+        # دریافت وضعیت چاه مرتبط
+        well = get_well_by_pump_id(pump['id'])
+        if well:
+            pump_dict['well_status'] = well['status']
+            pump_dict['well_id'] = well['id']
+        else:
+            pump_dict['well_status'] = 'active'  # حالت پیشفرض
+            pump_dict['well_id'] = None
+            
         if pump['last_action']:
             pump_dict['status'] = 1 if pump['last_action'] == 'ON' else 0
         else:
@@ -27,13 +37,11 @@ def dashboard():
             pump_dict['last_change_jalali'] = gregorian_to_jalali(pump['last_change'])
         else:
             pump_dict['last_change_jalali'] = 'بدون تاریخچه'
-        pumps_with_jalali.append(pump_dict)
+            
+        pumps_with_well_status.append(pump_dict)
     
-    # 🔔 بررسی و نمایش الارم حذف رکوردها (فقط برای ادمین)
-    if session['role'] == 'admin':
-        check_deletion_alerts(session['user_id'])
-    
-    return render_template('dashboard.html', pumps=pumps_with_jalali)
+    return render_template('dashboard.html', pumps=pumps_with_well_status)
+
 def check_deletion_alerts(user_id):
     """نمایش الارم حذف‌ها - یک بار در روز برای هر کاربر"""
     from database.models import get_db_connection

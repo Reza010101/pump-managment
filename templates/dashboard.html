@@ -36,6 +36,16 @@
         opacity: 0.5;
         cursor: not-allowed;
     }
+    .pump-inactive {
+        border-color: #6c757d !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        opacity: 0.7;
+    }
+
+    .pump-maintenance {
+        border-color: #ffc107 !important;
+        background: linear-gradient(135deg, #fff9e6 0%, #ffeaa7 100%);
+    }
 </style>
 {% endblock %}
 
@@ -61,21 +71,49 @@
     <div class="row" id="pumps-container">
         {% for pump in pumps %}
         <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
-            <div class="card pump-card {{ 'pump-on' if pump.status and pump.has_history > 0 else 'pump-off' if not pump.status and pump.has_history > 0 else 'pump-unknown' }} h-100">
+            <div class="card pump-card 
+                {% if pump.well_status == 'active' %}
+                    {{ 'pump-on' if pump.status and pump.has_history > 0 else 'pump-off' if not pump.status and pump.has_history > 0 else 'pump-unknown' }}
+                {% elif pump.well_status == 'inactive' %}
+                    pump-inactive
+                {% elif pump.well_status == 'maintenance' %}
+                    pump-maintenance
+                {% else %}
+                    pump-unknown
+                {% endif %} h-100">
+                
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
                         <i class="bi bi-water-pump"></i>
                         پمپ {{ pump.pump_number }}
                     </h6>
-                    <span class="status-badge badge {{ 'bg-success' if pump.status and pump.has_history > 0 else 'bg-danger' if not pump.status and pump.has_history > 0 else 'bg-secondary' }}">
-                        {% if pump.has_history > 0 %}
-                            {% if pump.status %}
-                                <i class="bi bi-power"></i> روشن
-                            {% else %}
-                                <i class="bi bi-power-off"></i> خاموش
-                            {% endif %}
+                    <span class="status-badge badge 
+                        {% if pump.well_status == 'active' %}
+                            {{ 'bg-success' if pump.status and pump.has_history > 0 else 'bg-danger' if not pump.status and pump.has_history > 0 else 'bg-secondary' }}
+                        {% elif pump.well_status == 'inactive' %}
+                            bg-secondary
+                        {% elif pump.well_status == 'maintenance' %}
+                            bg-warning
                         {% else %}
-                            <i class="bi bi-question-circle"></i> بدون تاریخچه
+                            bg-dark
+                        {% endif %}">
+                        
+                        {% if pump.well_status == 'active' %}
+                            {% if pump.has_history > 0 %}
+                                {% if pump.status %}
+                                    <i class="bi bi-power"></i> روشن
+                                {% else %}
+                                    <i class="bi bi-power-off"></i> خاموش
+                                {% endif %}
+                            {% else %}
+                                <i class="bi bi-question-circle"></i> بدون تاریخچه
+                            {% endif %}
+                        {% elif pump.well_status == 'inactive' %}
+                            <i class="bi bi-x-circle"></i> غیرفعال
+                        {% elif pump.well_status == 'maintenance' %}
+                            <i class="bi bi-tools"></i> در حال تعمیر
+                        {% else %}
+                            <i class="bi bi-question-circle"></i> نامشخص
                         {% endif %}
                     </span>
                 </div>
@@ -91,11 +129,12 @@
                         <small class="text-muted">
                             <i class="bi bi-clock"></i>
                             آخرین تغییر: 
-                            {{ pump.last_change_jalali[:16] if pump.last_change_jalali else 'بدون تاریخچه' }}
+                            {{ pump.last_change_jalali if pump.last_change_jalali else 'بدون تاریخچه' }}
                         </small>
                     </div>
 
-                    <!-- دکمه‌های تغییر وضعیت -->
+                    <!-- دکمه‌های تغییر وضعیت - فقط برای چاه‌های فعال -->
+                    {% if pump.well_status == 'active' %}
                     <div class="btn-group w-100" role="group">
                         <button 
                             class="btn btn-success btn-action btn-sm {{ 'disabled' if pump.status and pump.has_history > 0 }}"
@@ -112,6 +151,18 @@
                             خاموش
                         </button>
                     </div>
+                    {% else %}
+                    <div class="alert alert-warning text-center py-2 mb-0">
+                        <small>
+                            <i class="bi bi-info-circle"></i>
+                            {% if pump.well_status == 'inactive' %}
+                                چاه غیرفعال است
+                            {% elif pump.well_status == 'maintenance' %}
+                                چاه در حال تعمیر است
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -22,6 +22,17 @@ def change_pump_status(pump_id, action, user_id, reason, notes, manual_time=Fals
                 'success': False, 
                 'error': f'پمپ در حال حاضر {"روشن" if current_status else "خاموش"} است'
             }
+        well = conn.execute('''
+            SELECT w.status 
+            FROM wells w 
+            WHERE w.pump_id = ?
+        ''', (pump_id,)).fetchone()
+
+        if well and well['status'] != 'active':
+            return {
+                'success': False, 
+                'error': f'امکان تغییر وضعیت وجود ندارد. چاه در حالت "{well["status"]}" است.'
+            }
         
         event_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         recorded_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
