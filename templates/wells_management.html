@@ -73,8 +73,6 @@
                         <thead>
                             <tr>
                                 <th>شماره چاه</th>
-                                <th>نام</th>
-                                <th>موقعیت</th>
                                 <th>وضعیت پمپ</th>
                                 <th>برند پمپ</th>
                                 <th>قدرت پمپ</th>
@@ -88,8 +86,6 @@
                                 <td>
                                     <strong>چاه {{ well.well_number }}</strong>
                                 </td>
-                                <td>{{ well.name }}</td>
-                                <td>{{ well.location or '-' }}</td>
                                 <td>
                                     <span class="badge {% if well.pump_status %}bg-success{% else %}bg-danger{% endif %}">
                                         {% if well.pump_status %}
