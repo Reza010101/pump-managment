@@ -15,6 +15,12 @@ def dashboard():
     pumps = get_all_pumps()
     pumps_with_well_status = []
     
+    # آمار جدید
+    pumps_on = 0
+    pumps_off = 0
+    pumps_maintenance = 0
+    pumps_inactive = 0
+    
     for pump in pumps:
         pump_dict = dict(pump)
         pump_dict['has_history'] = pump['has_history']
@@ -24,9 +30,25 @@ def dashboard():
         if well:
             pump_dict['well_status'] = well['status']
             pump_dict['well_id'] = well['id']
+            
+            # محاسبه آمار بر اساس وضعیت چاه
+            if well['status'] == 'active':
+                if pump['status']:  # پمپ روشن
+                    pumps_on += 1
+                else:  # پمپ خاموش
+                    pumps_off += 1
+            elif well['status'] == 'maintenance':
+                pumps_maintenance += 1
+            elif well['status'] == 'inactive':
+                pumps_inactive += 1
         else:
-            pump_dict['well_status'] = 'active'  # حالت پیشفرض
+            pump_dict['well_status'] = 'active'
             pump_dict['well_id'] = None
+            # اگر چاه نداره، مثل قبل حساب کن
+            if pump['status']:
+                pumps_on += 1
+            else:
+                pumps_off += 1
             
         if pump['last_action']:
             pump_dict['status'] = 1 if pump['last_action'] == 'ON' else 0
@@ -40,7 +62,17 @@ def dashboard():
             
         pumps_with_well_status.append(pump_dict)
     
-    return render_template('dashboard.html', pumps=pumps_with_well_status)
+    total_pumps = len(pumps)
+    
+    return render_template('dashboard.html', 
+                         pumps=pumps_with_well_status,
+                         pump_stats={
+                             'on': pumps_on,
+                             'off': pumps_off,
+                             'maintenance': pumps_maintenance,
+                             'inactive': pumps_inactive,
+                             'total': total_pumps
+                         })
 
 def check_deletion_alerts(user_id):
     """نمایش الارم حذف‌ها - یک بار در روز برای هر کاربر"""
