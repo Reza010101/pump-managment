@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session, redirect, flash
+from flask import Blueprint, render_template, request, session, redirect, flash, jsonify
 from database.users import get_user_by_credentials
 from database.operations import update_pump_current_status
 
@@ -27,6 +27,34 @@ def login():
             flash('نام کاربری یا رمز عبور اشتباه است!', 'error')
     
     return render_template('login.html')
+
+
+@auth_bp.route('/api/login', methods=['POST'])
+def api_login():
+    """JSON API login endpoint for mobile apps."""
+    data = request.get_json(silent=True) or {}
+    username = data.get('username', '')
+    password = data.get('password', '')
+
+    user = get_user_by_credentials(username, password)
+
+    if user:
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['full_name'] = user['full_name']
+        session['role'] = user['role']
+        update_pump_current_status()
+        return jsonify({
+            'success': True,
+            'user': {
+                'id': user['id'],
+                'username': user['username'],
+                'full_name': user['full_name'],
+                'role': user['role'],
+            }
+        }), 200
+
+    return jsonify({'success': False, 'error': 'نام کاربری یا رمز عبور اشتباه است!'}), 401
 
 @auth_bp.route('/logout')
 def logout():

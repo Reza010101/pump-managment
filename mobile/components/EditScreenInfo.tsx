@@ -15,7 +15,7 @@ export default function EditScreenInfo({ path }: { path: string }) {
           style={styles.getStartedText}
           lightColor="rgba(0,0,0,0.8)"
           darkColor="rgba(255,255,255,0.8)">
-          Open up the code for this screen:
+          کد این صفحه را باز کنید:
         </Text>
 
         <View
@@ -29,7 +29,7 @@ export default function EditScreenInfo({ path }: { path: string }) {
           style={styles.getStartedText}
           lightColor="rgba(0,0,0,0.8)"
           darkColor="rgba(255,255,255,0.8)">
-          Change any of the text, save the file, and your app will automatically update.
+          متن را تغییر دهید، فایل را ذخیره کنید و اپ به‌صورت خودکار بروزرسانی می‌شود.
         </Text>
       </View>
 
@@ -37,9 +37,7 @@ export default function EditScreenInfo({ path }: { path: string }) {
         <ExternalLink
           style={styles.helpLink}
           href="https://docs.expo.io/get-started/create-a-new-app/#opening-the-app-on-your-phonetablet">
-          <Text style={styles.helpLinkText} lightColor={Colors.light.tint}>
-            Tap here if your app doesn't automatically update after making changes
-          </Text>
+          <Text style={styles.helpLinkText} lightColor={Colors.light.tint}>اگر اپ بعد از تغییرات به‌صورت خودکار بروزرسانی نشد، اینجا بزنید</Text>
         </ExternalLink>
       </View>
     </View>

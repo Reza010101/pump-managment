@@ -34,6 +34,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "http://10.0.2.2:5000",
+      "eas": {
+        "projectId": "local-dev"
+      }
     }
   }
 }
