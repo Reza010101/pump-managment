@@ -103,17 +103,12 @@ def create_excel_with_title(df, title, sheet_name):
         # اضافه کردن عنوان
         worksheet.insert_rows(1)
         worksheet['A1'] = title
-        worksheet.merge_cells('A1:H1')
+        worksheet.merge_cells('A1:B1')
         
         # تنظیم عرض ستون‌ها
         worksheet.column_dimensions['A'].width = 15
         worksheet.column_dimensions['B'].width = 20
-        worksheet.column_dimensions['C'].width = 12
-        worksheet.column_dimensions['D'].width = 12
-        worksheet.column_dimensions['E'].width = 10
-        worksheet.column_dimensions['F'].width = 20
-        worksheet.column_dimensions['G'].width = 25
-        worksheet.column_dimensions['H'].width = 15
+       
     
     return output
 

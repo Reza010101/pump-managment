@@ -79,7 +79,6 @@ def get_operating_hours_report(date_jalali, month_jalali, report_type):
             if pump:
                 results.append({
                     'pump_number': pump['pump_number'],
-                    'name': pump['name'],
                     'operating_hours': pump_hours
                 })
                 
@@ -96,7 +95,6 @@ def get_operating_hours_report(date_jalali, month_jalali, report_type):
             if pump:
                 results.append({
                     'pump_number': pump['pump_number'],
-                    'name': pump['name'],
                     'operating_hours': pump_hours
                 })
     
