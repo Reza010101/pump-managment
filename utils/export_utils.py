@@ -2,6 +2,8 @@ import pandas as pd
 import io
 from flask import send_file
 from database.reports import get_operating_hours_report, get_status_at_time_report, get_full_history_report
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, Alignment
 
 def export_operating_hours_to_excel(date_jalali, month_jalali, report_type):
     """خروجی اکسل برای گزارش ساعات کارکرد"""
@@ -103,13 +105,30 @@ def create_excel_with_title(df, title, sheet_name):
         # اضافه کردن عنوان
         worksheet.insert_rows(1)
         worksheet['A1'] = title
-        worksheet.merge_cells('A1:B1')
-        
-        # تنظیم عرض ستون‌ها
-        worksheet.column_dimensions['A'].width = 15
-        worksheet.column_dimensions['B'].width = 20
-       
-    
+
+        # merge title across all dataframe columns (handle variable width)
+        if df.shape[1] >= 1:
+            last_col = get_column_letter(df.shape[1])
+            worksheet.merge_cells(f'A1:{last_col}1')
+
+        # style title
+        worksheet['A1'].font = Font(size=14, bold=True)
+        worksheet['A1'].alignment = Alignment(horizontal='center', vertical='center')
+
+        # auto-size columns based on content
+        for idx, col in enumerate(df.columns, start=1):
+            col_letter = get_column_letter(idx)
+            # compute max length in column (including header)
+            try:
+                max_length = max(df[col].astype(str).map(len).max(), len(str(col)))
+            except Exception:
+                max_length = len(str(col))
+
+            adjusted_width = (max_length or 0) + 2
+            worksheet.column_dimensions[col_letter].width = adjusted_width
+
+    output.seek(0)
+
     return output
 
 def create_sample_excel_file():
