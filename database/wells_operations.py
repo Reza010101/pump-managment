@@ -184,6 +184,12 @@ def create_maintenance_operation(operation_data):
         if not operation_data.get('well_id') or not operation_data.get('recorded_by_user_id'):
             return {'success': False, 'error': 'فیلد well_id و recorded_by_user_id الزامی است'}
 
+        # Require reason/operation_type and a recorded date for maintenance-only flow
+        if not (operation_data.get('operation_type') or operation_data.get('reason')):
+            return {'success': False, 'error': 'فیلد علت (operation_type یا reason) الزامی است'}
+        if not operation_data.get('operation_date'):
+            return {'success': False, 'error': 'فیلد تاریخ ثبت (operation_date) الزامی است'}
+
         user_id = operation_data['recorded_by_user_id']
         # check user role/permission
         user = conn.execute('SELECT role FROM users WHERE id = ?', (user_id,)).fetchone()
