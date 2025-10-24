@@ -180,11 +180,9 @@ def create_maintenance_operation(operation_data):
     conn = get_db_connection()
 
     try:
-        # اعتبارسنجی داده‌های ورودی
-        required_fields = ['well_id', 'recorded_by_user_id', 'operation_type', 'operation_date', 'description']
-        for field in required_fields:
-            if not operation_data.get(field):
-                return {'success': False, 'error': f'فیلد {field} الزامی است'}
+        # minimal validation
+        if not operation_data.get('well_id') or not operation_data.get('recorded_by_user_id'):
+            return {'success': False, 'error': 'فیلد well_id و recorded_by_user_id الزامی است'}
 
         user_id = operation_data['recorded_by_user_id']
         # check user role/permission
@@ -216,7 +214,9 @@ def create_maintenance_operation(operation_data):
             'status', 'notes'
         ]
 
-        changed_fields = {}
+        # changed_fields will be a list of field names; changed_values maps field -> [old, new]
+        changed_fields = []
+        changed_values = {}
         updates_to_apply = {}
         for key in allowed_fields:
             if key in well_updates:
@@ -226,7 +226,8 @@ def create_maintenance_operation(operation_data):
                 old_s = '' if old_val is None else str(old_val)
                 new_s = '' if new_val is None else str(new_val)
                 if old_s != new_s:
-                    changed_fields[key] = [old_val, new_val]
+                    changed_fields.append(key)
+                    changed_values[key] = [old_val, new_val]
                     updates_to_apply[key] = new_val
 
         # if there are updates, perform update on wells
@@ -237,22 +238,41 @@ def create_maintenance_operation(operation_data):
             values.append(well_id)
             conn.execute(f'UPDATE wells SET {set_clause} WHERE id = ?', values)
 
-        # insert into wells_history instead of maintenance_operations
-        wh_changed_fields = json.dumps(changed_fields, ensure_ascii=False) if changed_fields else None
+        # fetch snapshot of well after potential update
+        new_well = conn.execute('SELECT * FROM wells WHERE id = ?', (well_id,)).fetchone()
+
+        # prepare history metadata
+        # recorded_date: prefer explicit operation_date, otherwise use today's date
+        recorded_date = operation_data.get('operation_date') or datetime.now().strftime('%Y-%m-%d')
+        reason = operation_data.get('operation_type') or operation_data.get('reason') or ''
+        description = operation_data.get('description')
+        parts_used = operation_data.get('parts_used')
+        duration_minutes = operation_data.get('duration_minutes')
+        new_status = operation_data.get('status')
+
+        wh_changed_fields = json.dumps(changed_fields, ensure_ascii=False) if changed_fields else json.dumps([], ensure_ascii=False)
+        wh_changed_values = json.dumps(changed_values, ensure_ascii=False) if changed_values else None
+        # full snapshot as JSON (values from new_well)
+        full_snapshot = json.dumps(dict(new_well) if new_well else {}, ensure_ascii=False)
+
         cur = conn.execute('''
             INSERT INTO wells_history (
                 well_id, changed_by_user_id, change_type, changed_fields,
-                description, parts_used, duration_minutes, new_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                changed_values, full_snapshot, description, parts_used, duration_minutes, new_status, recorded_time, recorded_date, reason
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
         ''', (
             operation_data['well_id'],
             operation_data['recorded_by_user_id'],
-            operation_data['operation_type'],
+            reason,
             wh_changed_fields,
-            operation_data.get('description'),
-            operation_data.get('parts_used'),
-            operation_data.get('duration_minutes'),
-            operation_data.get('status')
+            wh_changed_values,
+            full_snapshot,
+            description,
+            parts_used,
+            duration_minutes,
+            new_status,
+            recorded_date,
+            reason
         ))
 
         maintenance_id = cur.lastrowid

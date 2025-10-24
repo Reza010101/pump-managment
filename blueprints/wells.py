@@ -101,45 +101,14 @@ def well_details(well_id):
 @wells_bp.route('/wells/<int:well_id>/edit', methods=['GET', 'POST'])
 def edit_well(well_id):
     """ویرایش اطلاعات چاه"""
+    # We no longer allow direct editing via a separate edit page.
+    # Redirect users to the maintenance page which is the single source of truth for updates.
     if 'user_id' not in session:
         flash('لطفا ابتدا وارد شوید', 'error')
         return redirect('/login')
-    
-    well = get_well_by_id(well_id)
-    if not well:
-        flash('چاه مورد نظر یافت نشد', 'error')
-        return redirect('/wells')
-    
-    if request.method == 'POST':
-        # جمع‌آوری داده‌های فرم
-        well_data = {
-            'name': request.form.get('name'),
-            'location': request.form.get('location'),
-            'total_depth': request.form.get('total_depth'),
-            'pump_installation_depth': request.form.get('pump_installation_depth'),
-            'well_diameter': request.form.get('well_diameter'),
-            'current_pump_brand': request.form.get('current_pump_brand'),
-            'current_pump_model': request.form.get('current_pump_model'),
-            'current_pump_power': request.form.get('current_pump_power'),
-            'current_pump_phase': request.form.get('current_pump_phase'),
-            'current_pipe_material': request.form.get('current_pipe_material'),
-            'current_pipe_specs': request.form.get('current_pipe_specs'),
-            'current_panel_specs': request.form.get('current_panel_specs'),
-            # removed: casing_type, current_cable_specs, well_installation_date, current_equipment_installation_date
-            'status': request.form.get('status', 'active'),
-            'notes': request.form.get('notes')
-        }
-        
-        # بروزرسانی چاه
-        result = update_well(well_id, well_data)
-        
-        if result['success']:
-            flash(result['message'], 'success')
-            return redirect(f'/wells/{well_id}')
-        else:
-            flash(result['error'], 'error')
-    
-    return render_template('edit_well.html', well=dict(well))
+
+    flash('ویرایش مستقیم اطلاعات چاه حذف شده است. برای ثبت تغییرات از صفحه مدیریت تعمیرات استفاده کنید.', 'info')
+    return redirect(f'/wells/{well_id}/maintenance')
 
 @wells_bp.route('/wells/<int:well_id>/maintenance', methods=['GET', 'POST'])
 def well_maintenance(well_id):
