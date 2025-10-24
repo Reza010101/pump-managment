@@ -32,14 +32,37 @@
                         <h5 class="mb-0">➕ ثبت عملیات تعمیرات جدید</h5>
                     </div>
                     <div class="card-body">
-                        <!-- summary preview removed per UX request -->
                         <form method="POST">
-                            <!-- operation type/date/performed_by moved into the update section below -->
+                            <div class="mb-3">
+                                <label class="form-label">نوع عملیات</label>
+                                <select class="form-select" name="operation_type" required>
+                                    <option value="">انتخاب کنید</option>
+                                    <option value="تعمیرات دوره‌ای">تعمیرات دوره‌ای</option>
+                                    <option value="تعویض پمپ">تعویض پمپ</option>
+                                    <option value="تعمیر الکتروموتور">تعمیر الکتروموتور</option>
+                                    <option value="تعویض کابل">تعویض کابل</option>
+                                    <option value="تعویض لوله">تعویض لوله</option>
+                                    <option value="تمیزکاری چاه">تمیزکاری چاه</option>
+                                    <option value="بازرسی فنی">بازرسی فنی</option>
+                                    <option value="سایر">سایر</option>
+                                </select>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">تاریخ عملیات</label>
+                                    <input type="date" class="form-control" name="operation_date" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">زمان عملیات</label>
+                                    <input type="time" class="form-control" name="operation_time">
+                                </div>
+                            </div>
 
                             <div class="mb-3">
                                 <label class="form-label">شرح عملیات</label>
                                 <textarea class="form-control" name="description" rows="3" 
-                                          placeholder="شرح کامل عملیات انجام شده..."></textarea>
+                                          placeholder="شرح کامل عملیات انجام شده..." required></textarea>
                             </div>
 
                             <div class="row mb-3">
@@ -77,37 +100,29 @@
                                           placeholder="یادداشت‌های اضافی..."></textarea>
                             </div>
 
-                            <!-- optional well updates (expanded) -->
+                            <!-- optional well updates -->
                             <hr>
                             <h6>به‌روزرسانی مشخصات چاه (اختیاری)</h6>
-                            <p class="text-muted small">در صورت تغییر هر یک از مشخصات فنی یا تجهیزاتی، آن‌ها را وارد کنید تا هنگام ثبت تعمیرات، چاه به‌روزرسانی شود.</p>
-
-                            <div class="mb-3">
-                                <h6>به‌روزرسانی مشخصات چاه (فقط فیلدهای ثبت عملیات)</h6>
-                                <p class="text-muted small">فقط موارد زیر برای ثبت تعمیرات لازم است. در صورت نیاز می‌توانید توضیح تکمیلی وارد کنید.</p>
-                                <div class="mb-2">
-                                    <label class="form-label">نوع عملیات</label>
-                                    <select class="form-select" name="operation_type" required>
-                                        <option value="">انتخاب کنید</option>
-                                        <option value="تعمیرات دوره‌ای">تعمیرات دوره‌ای</option>
-                                        <option value="تعویض پمپ">تعویض پمپ</option>
-                                        <option value="تعمیر الکتروموتور">تعمیر الکتروموتور</option>
-                                        <option value="تعویض کابل">تعویض کابل</option>
-                                        <option value="تعویض لوله">تعویض لوله</option>
-                                        <option value="تمیزکاری چاه">تمیزکاری چاه</option>
-                                        <option value="بازرسی فنی">بازرسی فنی</option>
-                                        <option value="سایر">سایر</option>
-                                    </select>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">قطر لوله (مثال: 50mm)</label>
+                                    <input type="text" class="form-control" name="current_pipe_diameter" value="{{ well.current_pipe_diameter or '' }}">
                                 </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">تاریخ عملیات</label>
-                                        <input type="date" class="form-control" name="operation_date" required>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label">توسط</label>
-                                        <input type="text" class="form-control" name="performed_by" placeholder="نام تکنسین یا شرکت اجرا کننده">
-                                    </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">متراژ لوله (متر)</label>
+                                    <input type="number" step="0.01" class="form-control" name="current_pipe_length_m" value="{{ well.current_pipe_length_m or '' }}">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">کابل اصلی</label>
+                                    <input type="text" class="form-control" name="main_cable_specs" value="{{ well.main_cable_specs or '' }}">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">کابل چاه</label>
+                                    <input type="text" class="form-control" name="well_cable_specs" value="{{ well.well_cable_specs or '' }}">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">مشخصات تابلو</label>
+                                    <input type="text" class="form-control" name="current_panel_specs" value="{{ well.current_panel_specs or '' }}">
                                 </div>
                             </div>
 
@@ -120,7 +135,10 @@
             </div>
 
             <!-- تاریخچه تعمیرات -->
-                                
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">📋 تاریخچه عملیات تعمیرات</h5>
                     </div>
                     <div class="card-body">
                         {% if maintenance_operations %}
@@ -238,6 +256,5 @@ document.addEventListener('DOMContentLoaded', function() {
     const today = new Date().toISOString().split('T')[0];
     document.querySelector('input[name="operation_date"]').value = today;
 });
-// no client-side diff preview (removed as requested)
 </script>
 {% endblock %}
