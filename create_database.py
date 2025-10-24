@@ -111,11 +111,11 @@ def create_tables(cursor):
             changed_by_user_id INTEGER NOT NULL,
             change_type TEXT NOT NULL,
             changed_fields TEXT,
-            description TEXT,
-            parts_used TEXT,
-            duration_minutes INTEGER,
-            new_status TEXT,
+            changed_values TEXT,
+            full_snapshot TEXT,
             recorded_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+            recorded_date DATE,
+            reason TEXT,
             FOREIGN KEY (well_id) REFERENCES wells(id),
             FOREIGN KEY (changed_by_user_id) REFERENCES users(id)
         )

@@ -251,11 +251,7 @@ def create_maintenance_operation(operation_data):
         # recorded_date: prefer explicit operation_date, otherwise use today's date
         recorded_date = operation_data.get('operation_date') or datetime.now().strftime('%Y-%m-%d')
         reason = operation_data.get('operation_type') or operation_data.get('reason') or ''
-        description = operation_data.get('description')
-        parts_used = operation_data.get('parts_used')
-        duration_minutes = operation_data.get('duration_minutes')
-        new_status = operation_data.get('status')
-
+        # we no longer store free-text description/parts/duration/new_status on maintenance records
         wh_changed_fields = json.dumps(changed_fields, ensure_ascii=False) if changed_fields else json.dumps([], ensure_ascii=False)
         wh_changed_values = json.dumps(changed_values, ensure_ascii=False) if changed_values else None
         # full snapshot as JSON (values from new_well)
@@ -264,8 +260,8 @@ def create_maintenance_operation(operation_data):
         cur = conn.execute('''
             INSERT INTO wells_history (
                 well_id, changed_by_user_id, change_type, changed_fields,
-                changed_values, full_snapshot, description, parts_used, duration_minutes, new_status, recorded_time, recorded_date, reason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
+                changed_values, full_snapshot, recorded_time, recorded_date, reason
+            ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
         ''', (
             operation_data['well_id'],
             operation_data['recorded_by_user_id'],
@@ -273,10 +269,6 @@ def create_maintenance_operation(operation_data):
             wh_changed_fields,
             wh_changed_values,
             full_snapshot,
-            description,
-            parts_used,
-            duration_minutes,
-            new_status,
             recorded_date,
             reason
         ))
@@ -372,7 +364,7 @@ def get_well_statistics(well_id):
         
         # آخرین عملیات تعمیرات (از wells_history)
         last_maintenance = conn.execute('''
-            SELECT change_type as operation_type, recorded_time as operation_date, description 
+            SELECT change_type as operation_type, recorded_time as operation_date
             FROM wells_history 
             WHERE well_id = ? 
             ORDER BY recorded_time DESC 

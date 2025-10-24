@@ -130,11 +130,7 @@ def well_maintenance(well_id):
             'operation_type': request.form.get('operation_type'),
             'operation_date': request.form.get('operation_date'),
             'operation_time': request.form.get('operation_time'),
-            'description': request.form.get('description'),
-            'parts_used': request.form.get('parts_used'),
-            'duration_minutes': request.form.get('duration_minutes'),
             'performed_by': request.form.get('performed_by'),
-            'status': request.form.get('status', 'completed'),
             'notes': request.form.get('notes')
         }
         # collect optional well field updates from the maintenance form

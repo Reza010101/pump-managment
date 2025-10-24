@@ -11,11 +11,8 @@ op = {
     'operation_type': 'repair',
     'operation_date': '2025-10-24',
     'operation_time': '10:00',
-    'description': 'تست ثبت تعمیرات، تغییر طول لوله',
-    'parts_used': 'لوله و بست',
-    'duration_minutes': 120,
+    
     'performed_by': 'تیم تعمیرات',
-    'status': 'completed',
     'notes': 'توضیحات تست',
     'well_updates': {
         'current_pipe_length_m': 123.45,

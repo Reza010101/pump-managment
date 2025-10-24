@@ -6,7 +6,6 @@
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <!-- هدر -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h4 class="mb-0">
@@ -25,16 +24,17 @@
         </div>
 
         <div class="row">
-            <!-- فرم ثبت تعمیرات -->
-            <div class="col-md-5">
-                <div class="card">
+            <!-- فرم ثبت تعمیرات + مشخصات چاه (چپ) -->
+            <div class="col-md-6">
+                <div class="card mb-3">
                     <div class="card-header">
                         <h5 class="mb-0">➕ ثبت عملیات تعمیرات جدید</h5>
                     </div>
                     <div class="card-body">
                         <form method="POST">
+                            <!-- اجباری‌ها -->
                             <div class="mb-3">
-                                <label class="form-label">نوع عملیات</label>
+                                <label class="form-label">نوع عملیات <span class="text-danger">*</span></label>
                                 <select class="form-select" name="operation_type" required>
                                     <option value="">انتخاب کنید</option>
                                     <option value="تعمیرات دوره‌ای">تعمیرات دوره‌ای</option>
@@ -50,67 +50,103 @@
 
                             <div class="row mb-3">
                                 <div class="col-md-6">
-                                    <label class="form-label">تاریخ عملیات</label>
+                                    <label class="form-label">تاریخ عملیات <span class="text-danger">*</span></label>
                                     <input type="date" class="form-control" name="operation_date" required>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label">زمان عملیات</label>
-                                    <input type="time" class="form-control" name="operation_time">
+                                    <label class="form-label">توسط <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" name="performed_by" placeholder="نام تکنسین یا شرکت" required>
                                 </div>
                             </div>
 
-                            <div class="mb-3">
-                                <label class="form-label">شرح عملیات</label>
-                                <textarea class="form-control" name="description" rows="3" 
-                                          placeholder="شرح کامل عملیات انجام شده..." required></textarea>
-                            </div>
+                            <!-- (توضیحات، قطعات مصرفی، مدت زمان و وضعیت از فرم حذف شدند) -->
 
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">قطعات مصرفی</label>
-                                    <input type="text" class="form-control" name="parts_used" 
-                                           placeholder="مثال: پمپ جدید، کابل، یاتاقان...">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">مدت زمان (دقیقه)</label>
-                                    <input type="number" class="form-control" name="duration_minutes" 
-                                           placeholder="مدت زمان انجام عملیات">
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">توسط</label>
-                                <input type="text" class="form-control" name="performed_by" 
-                                       placeholder="نام تکنسین یا شرکت اجرا کننده">
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">وضعیت</label>
-                                <select class="form-select" name="status">
-                                    <option value="completed">تکمیل شده</option>
-                                    <option value="in-progress">در حال انجام</option>
-                                    <option value="pending">در انتظار</option>
-                                    <option value="cancelled">لغو شده</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label">یادداشت‌ها</label>
-                                <textarea class="form-control" name="notes" rows="2" 
-                                          placeholder="یادداشت‌های اضافی..."></textarea>
-                            </div>
-
-                            <!-- optional well updates -->
                             <hr>
-                            <h6>به‌روزرسانی مشخصات چاه (اختیاری)</h6>
-                            <div class="row">
+
+                            <!-- مشخصات چاه: کپی از edit_well (قابل ویرایش) -->
+                            <h6 class="mb-3">✏️ مشخصات چاه (در صورت نیاز ویرایش کنید)</h6>
+
+                            <!-- اطلاعات اصلی -->
+                            <div class="row mb-3">
                                 <div class="col-md-6 mb-2">
-                                    <label class="form-label">قطر لوله (مثال: 50mm)</label>
+                                    <label class="form-label">نام چاه</label>
+                                    <input type="text" class="form-control" name="name" value="{{ well.name }}">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">موقعیت</label>
+                                    <input type="text" class="form-control" name="location" value="{{ well.location or '' }}">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label">وضعیت چاه</label>
+                                    <select class="form-select" name="status">
+                                        <option value="active" {% if well.status == 'active' %}selected{% endif %}>فعال</option>
+                                        <option value="maintenance" {% if well.status == 'maintenance' %}selected{% endif %}>در حال تعمیر</option>
+                                        <option value="inactive" {% if well.status == 'inactive' %}selected{% endif %}>غیرفعال</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- اطلاعات فنی -->
+                            <div class="row mb-3">
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label">عمق کل چاه (متر)</label>
+                                    <input type="text" class="form-control" name="total_depth" value="{{ well.total_depth or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label">عمق نصب پمپ (متر)</label>
+                                    <input type="text" class="form-control" name="pump_installation_depth" value="{{ well.pump_installation_depth or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label">قطر چاه (اینچ)</label>
+                                    <input type="text" class="form-control" name="well_diameter" value="{{ well.well_diameter or '' }}">
+                                </div>
+                            </div>
+
+                            <!-- پمپ -->
+                            <div class="row mb-3">
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label">برند پمپ</label>
+                                    <input type="text" class="form-control" name="current_pump_brand" value="{{ well.current_pump_brand or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label">مدل پمپ</label>
+                                    <input type="text" class="form-control" name="current_pump_model" value="{{ well.current_pump_model or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label">قدرت پمپ</label>
+                                    <input type="text" class="form-control" name="current_pump_power" value="{{ well.current_pump_power or '' }}">
+                                </div>
+                                <div class="col-md-4 mb-2">
+                                    <label class="form-label">فاز</label>
+                                    <select class="form-select" name="current_pump_phase">
+                                        <option value="">انتخاب کنید</option>
+                                        <option value="تک فاز" {% if well.current_pump_phase == 'تک فاز' %}selected{% endif %}>تک فاز</option>
+                                        <option value="سه فاز" {% if well.current_pump_phase == 'سه فاز' %}selected{% endif %}>سه فاز</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- کابل و لوله -->
+                            <div class="row mb-3">
+                                <div class="col-md-3 mb-2">
+                                    <label class="form-label">جنس لوله</label>
+                                    <input type="text" class="form-control" name="current_pipe_material" value="{{ well.current_pipe_material or '' }}">
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="form-label">مشخصات لوله</label>
+                                    <input type="text" class="form-control" name="current_pipe_specs" value="{{ well.current_pipe_specs or '' }}">
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <label class="form-label">قطر لوله</label>
                                     <input type="text" class="form-control" name="current_pipe_diameter" value="{{ well.current_pipe_diameter or '' }}">
                                 </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="form-label">متراژ لوله (متر)</label>
+                                <div class="col-md-3 mb-2">
+                                    <label class="form-label">متراژ لوله (م)</label>
                                     <input type="number" step="0.01" class="form-control" name="current_pipe_length_m" value="{{ well.current_pipe_length_m or '' }}">
+                                </div>
+                                <div class="col-12 mb-2">
+                                    <label class="form-label">مشخصات تابلو</label>
+                                    <input type="text" class="form-control" name="current_panel_specs" value="{{ well.current_panel_specs or '' }}">
                                 </div>
                                 <div class="col-md-6 mb-2">
                                     <label class="form-label">کابل اصلی</label>
@@ -120,22 +156,27 @@
                                     <label class="form-label">کابل چاه</label>
                                     <input type="text" class="form-control" name="well_cable_specs" value="{{ well.well_cable_specs or '' }}">
                                 </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="form-label">مشخصات تابلو</label>
-                                    <input type="text" class="form-control" name="current_panel_specs" value="{{ well.current_panel_specs or '' }}">
-                                </div>
                             </div>
 
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-check-lg"></i> ثبت عملیات
-                            </button>
+                            <div class="mb-3">
+                                <label class="form-label">یادداشت‌ها</label>
+                                <textarea class="form-control" name="notes" rows="2">{{ well.notes or '' }}</textarea>
+                            </div>
+
+                            <!-- دکمه ثبت عملیات بعد از مشخصات چاه قرار می‌گیرد -->
+                            <div class="mb-3 text-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-check-lg"></i> ثبت عملیات
+                                </button>
+                            </div>
+
                         </form>
                     </div>
                 </div>
             </div>
 
-            <!-- تاریخچه تعمیرات -->
-            <div class="col-md-7">
+            <!-- تاریخچه تعمیرات (راست) -->
+            <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">📋 تاریخچه عملیات تعمیرات</h5>
@@ -147,7 +188,8 @@
                                 <thead>
                                     <tr>
                                         <th>تاریخ</th>
-                                        <th>نوع عملیات</th>
+                                        <th>نوع</th>
+                                        <th>توسط</th>
                                         <th>شرح</th>
                                         <th>وضعیت</th>
                                         <th>عملیات</th>
@@ -157,35 +199,16 @@
                                     {% for operation in maintenance_operations %}
                                     <tr>
                                         <td>
-                                            <small>{{ operation.operation_date_jalali or operation.operation_date }}</small>
-                                            {% if operation.operation_time %}
-                                            <br><small class="text-muted">{{ operation.operation_time }}</small>
-                                            {% endif %}
+                                            <small>{{ operation.recorded_date_jalali or operation.recorded_date or operation.operation_date_jalali or operation.operation_date }}</small>
+                                        </td>
+                                        <td><span class="badge bg-info">{{ operation.operation_type }}</span></td>
+                                        <td>{{ operation.performed_by or operation.changed_by_user_name or '-' }}</td>
+                                        <td title="{{ operation.reason or operation.change_type or '' }}">{{ (operation.reason or operation.change_type)[:60] }}{% if (operation.reason or operation.change_type)|length > 60 %}...{% endif %}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">—</span>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info">{{ operation.operation_type }}</span>
-                                        </td>
-                                        <td>
-                                            <span title="{{ operation.description }}">
-                                                {{ operation.description[:50] }}{% if operation.description|length > 50 %}...{% endif %}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span class="badge 
-                                                {% if operation.status == 'completed' %}bg-success
-                                                {% elif operation.status == 'in-progress' %}bg-warning
-                                                {% elif operation.status == 'pending' %}bg-secondary
-                                                {% else %}bg-danger{% endif %}">
-                                                {% if operation.status == 'completed' %}تکمیل
-                                                {% elif operation.status == 'in-progress' %}در حال انجام
-                                                {% elif operation.status == 'pending' %}در انتظار
-                                                {% else %}لغو شده{% endif %}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-info" 
-                                                    onclick="showMaintenanceDetails({{ operation.id }})"
-                                                    data-bs-toggle="tooltip" title="مشاهده جزئیات">
+                                            <button class="btn btn-sm btn-outline-info" onclick="showMaintenanceDetails({{ operation.id }})" data-bs-toggle="tooltip" title="مشاهده جزئیات">
                                                 <i class="bi bi-eye"></i>
                                             </button>
                                         </td>

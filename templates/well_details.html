@@ -226,7 +226,7 @@
                                         <h6 class="mb-1">{{ operation.operation_type }}</h6>
                                         <small>{{ operation.operation_date_jalali or operation.operation_date }}</small>
                                     </div>
-                                    <p class="mb-1">{{ operation.description[:100] }}{% if operation.description|length > 100 %}...{% endif %}</p>
+                                    <p class="mb-1">{{ (operation.reason or operation.change_type)[:100] }}{% if (operation.reason or operation.change_type)|length > 100 %}...{% endif %}</p>
                                     <small>توسط: {{ operation.recorded_by_name }}</small>
                                 </div>
                                 {% endfor %}
