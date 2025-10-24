@@ -81,11 +81,15 @@ def well_details(well_id):
     for operation in maintenance_operations:
         op_dict = dict(operation)
         if operation['operation_date']:
-            # فرض می‌کنیم operation_date در فرمت Gregorian هست
+            # operation_date may be a date or datetime; handle both
             try:
-                jalali_date = gregorian_to_jalali(operation['operation_date'] + ' 00:00:00')
+                od = operation['operation_date']
+                if ' ' in od or ':' in od:
+                    jalali_date = gregorian_to_jalali(od)
+                else:
+                    jalali_date = gregorian_to_jalali(od + ' 00:00:00')
                 op_dict['operation_date_jalali'] = jalali_date.split(' ')[0]
-            except:
+            except Exception:
                 op_dict['operation_date_jalali'] = operation['operation_date']
         maintenance_with_jalali.append(op_dict)
     
@@ -114,17 +118,14 @@ def edit_well(well_id):
             'total_depth': request.form.get('total_depth'),
             'pump_installation_depth': request.form.get('pump_installation_depth'),
             'well_diameter': request.form.get('well_diameter'),
-            'casing_type': request.form.get('casing_type'),
             'current_pump_brand': request.form.get('current_pump_brand'),
             'current_pump_model': request.form.get('current_pump_model'),
             'current_pump_power': request.form.get('current_pump_power'),
             'current_pump_phase': request.form.get('current_pump_phase'),
-            'current_cable_specs': request.form.get('current_cable_specs'),
             'current_pipe_material': request.form.get('current_pipe_material'),
             'current_pipe_specs': request.form.get('current_pipe_specs'),
             'current_panel_specs': request.form.get('current_panel_specs'),
-            'well_installation_date': request.form.get('well_installation_date'),
-            'current_equipment_installation_date': request.form.get('current_equipment_installation_date'),
+            # removed: casing_type, current_cable_specs, well_installation_date, current_equipment_installation_date
             'status': request.form.get('status', 'active'),
             'notes': request.form.get('notes')
         }
@@ -174,12 +175,10 @@ def well_maintenance(well_id):
             'total_depth': request.form.get('total_depth'),
             'pump_installation_depth': request.form.get('pump_installation_depth'),
             'well_diameter': request.form.get('well_diameter'),
-            'casing_type': request.form.get('casing_type'),
             'current_pump_brand': request.form.get('current_pump_brand'),
             'current_pump_model': request.form.get('current_pump_model'),
             'current_pump_power': request.form.get('current_pump_power'),
             'current_pump_phase': request.form.get('current_pump_phase'),
-            'current_cable_specs': request.form.get('current_cable_specs'),
             'current_pipe_material': request.form.get('current_pipe_material'),
             'current_pipe_specs': request.form.get('current_pipe_specs'),
             'current_pipe_diameter': request.form.get('current_pipe_diameter'),
@@ -187,8 +186,6 @@ def well_maintenance(well_id):
             'main_cable_specs': request.form.get('main_cable_specs'),
             'well_cable_specs': request.form.get('well_cable_specs'),
             'current_panel_specs': request.form.get('current_panel_specs'),
-            'well_installation_date': request.form.get('well_installation_date'),
-            'current_equipment_installation_date': request.form.get('current_equipment_installation_date'),
             'status': request.form.get('status'),
             'notes': request.form.get('notes')
         }
@@ -216,9 +213,13 @@ def well_maintenance(well_id):
         op_dict = dict(operation)
         if operation['operation_date']:
             try:
-                jalali_date = gregorian_to_jalali(operation['operation_date'] + ' 00:00:00')
+                od = operation['operation_date']
+                if ' ' in od or ':' in od:
+                    jalali_date = gregorian_to_jalali(od)
+                else:
+                    jalali_date = gregorian_to_jalali(od + ' 00:00:00')
                 op_dict['operation_date_jalali'] = jalali_date.split(' ')[0]
-            except:
+            except Exception:
                 op_dict['operation_date_jalali'] = operation['operation_date']
         maintenance_with_jalali.append(op_dict)
     

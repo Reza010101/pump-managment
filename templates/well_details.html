@@ -95,12 +95,10 @@
                                 <td>{{ well.well_diameter or 'ثبت نشده' }}</td>
                             </tr>
                             <tr>
-                                <td><strong>نوع Casing:</strong></td>
-                                <td>{{ well.casing_type or 'ثبت نشده' }}</td>
+                                <!-- removed: casing_type -->
                             </tr>
                             <tr>
-                                <td><strong>تاریخ نصب چاه:</strong></td>
-                                <td>{{ well.well_installation_date or 'ثبت نشده' }}</td>
+                                <!-- removed: well_installation_date -->
                             </tr>
                         </table>
                     </div>
@@ -132,8 +130,7 @@
                                 <td>{{ well.current_pump_phase or 'ثبت نشده' }}</td>
                             </tr>
                             <tr>
-                                <td><strong>تاریخ نصب تجهیزات:</strong></td>
-                                <td>{{ well.current_equipment_installation_date or 'ثبت نشده' }}</td>
+                                <!-- removed: current_equipment_installation_date -->
                             </tr>
                         </table>
                     </div>
@@ -149,7 +146,7 @@
                         <h5 class="mb-0">🔌 مشخصات کابل</h5>
                     </div>
                     <div class="card-body">
-                        <p>{{ well.current_cable_specs or 'ثبت نشده' }}</p>
+                        <p>{{ well.current_panel_specs or 'ثبت نشده' }}</p>
                     </div>
                 </div>
             </div>

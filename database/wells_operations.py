@@ -139,21 +139,17 @@ def update_well(well_id, well_data):
             'total_depth': well_data.get('total_depth'),
             'pump_installation_depth': well_data.get('pump_installation_depth'),
             'well_diameter': well_data.get('well_diameter'),
-            'casing_type': well_data.get('casing_type'),
             'current_pump_brand': well_data.get('current_pump_brand'),
             'current_pump_model': well_data.get('current_pump_model'),
             'current_pump_power': well_data.get('current_pump_power'),
             'current_pump_phase': well_data.get('current_pump_phase'),
-               'current_cable_specs': well_data.get('current_cable_specs'),
-               'current_pipe_material': well_data.get('current_pipe_material'),
-               'current_pipe_specs': well_data.get('current_pipe_specs'),
-               'current_pipe_diameter': well_data.get('current_pipe_diameter'),
-               'current_pipe_length_m': well_data.get('current_pipe_length_m'),
-               'main_cable_specs': well_data.get('main_cable_specs'),
-               'well_cable_specs': well_data.get('well_cable_specs'),
-               'current_panel_specs': well_data.get('current_panel_specs'),
-            'well_installation_date': well_data.get('well_installation_date'),
-            'current_equipment_installation_date': well_data.get('current_equipment_installation_date'),
+            'current_pipe_material': well_data.get('current_pipe_material'),
+            'current_pipe_specs': well_data.get('current_pipe_specs'),
+            'current_pipe_diameter': well_data.get('current_pipe_diameter'),
+            'current_pipe_length_m': well_data.get('current_pipe_length_m'),
+            'main_cable_specs': well_data.get('main_cable_specs'),
+            'well_cable_specs': well_data.get('well_cable_specs'),
+            'current_panel_specs': well_data.get('current_panel_specs'),
             'status': well_data.get('status', 'active'),
             'notes': well_data.get('notes'),
             'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -209,42 +205,19 @@ def create_maintenance_operation(operation_data):
             conn.execute('ROLLBACK')
             return {'success': False, 'error': 'چاه مورد نظر یافت نشد'}
 
-        # prepare maintenance insert
-        cursor = conn.execute('''
-            INSERT INTO maintenance_operations (
-                well_id, recorded_by_user_id, operation_type, operation_date,
-                operation_time, description, parts_used, duration_minutes,
-                performed_by, status, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            operation_data['well_id'],
-            operation_data['recorded_by_user_id'],
-            operation_data['operation_type'],
-            operation_data['operation_date'],
-            operation_data.get('operation_time'),
-            operation_data['description'],
-            operation_data.get('parts_used', ''),
-            operation_data.get('duration_minutes'),
-            operation_data.get('performed_by', ''),
-            operation_data.get('status', 'completed'),
-            operation_data.get('notes', '')
-        ))
-
-        maintenance_id = cursor.lastrowid
-
         # handle well field updates if provided
         well_updates = operation_data.get('well_updates', {}) or {}
 
         allowed_fields = [
-            'name', 'location', 'total_depth', 'pump_installation_depth', 'well_diameter', 'casing_type',
+            'name', 'location', 'total_depth', 'pump_installation_depth', 'well_diameter',
             'current_pump_brand', 'current_pump_model', 'current_pump_power', 'current_pump_phase',
-            'current_cable_specs', 'current_pipe_material', 'current_pipe_specs', 'current_pipe_diameter',
+            'current_pipe_material', 'current_pipe_specs', 'current_pipe_diameter',
             'current_pipe_length_m', 'main_cable_specs', 'well_cable_specs', 'current_panel_specs',
-            'well_installation_date', 'current_equipment_installation_date', 'status', 'notes'
+            'status', 'notes'
         ]
 
         changed_fields = {}
-        update_fields = {}
+        updates_to_apply = {}
         for key in allowed_fields:
             if key in well_updates:
                 old_val = old_well[key] if key in old_well.keys() else None
@@ -254,15 +227,35 @@ def create_maintenance_operation(operation_data):
                 new_s = '' if new_val is None else str(new_val)
                 if old_s != new_s:
                     changed_fields[key] = [old_val, new_val]
-                    update_fields[key] = new_val
+                    updates_to_apply[key] = new_val
 
         # if there are updates, perform update on wells
-        if update_fields:
-            update_fields['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            set_clause = ', '.join([f"{k} = ?" for k in update_fields.keys()])
-            values = list(update_fields.values())
+        if updates_to_apply:
+            updates_to_apply['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            set_clause = ', '.join([f"{k} = ?" for k in updates_to_apply.keys()])
+            values = list(updates_to_apply.values())
             values.append(well_id)
             conn.execute(f'UPDATE wells SET {set_clause} WHERE id = ?', values)
+
+        # insert into wells_history instead of maintenance_operations
+        wh_changed_fields = json.dumps(changed_fields, ensure_ascii=False) if changed_fields else None
+        cur = conn.execute('''
+            INSERT INTO wells_history (
+                well_id, changed_by_user_id, change_type, changed_fields,
+                description, parts_used, duration_minutes, new_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            operation_data['well_id'],
+            operation_data['recorded_by_user_id'],
+            operation_data['operation_type'],
+            wh_changed_fields,
+            operation_data.get('description'),
+            operation_data.get('parts_used'),
+            operation_data.get('duration_minutes'),
+            operation_data.get('status')
+        ))
+
+        maintenance_id = cur.lastrowid
 
         conn.execute('COMMIT')
 
@@ -290,15 +283,15 @@ def get_well_maintenance_operations(well_id, limit=50):
     try:
         operations = conn.execute('''
             SELECT 
-                mo.*,
+                wh.*, wh.recorded_time as operation_date, NULL as operation_time,
                 u.full_name as recorded_by_name,
                 w.well_number,
                 w.name as well_name
-            FROM maintenance_operations mo
-            JOIN wells w ON mo.well_id = w.id
-            JOIN users u ON mo.recorded_by_user_id = u.id
-            WHERE mo.well_id = ?
-            ORDER BY mo.operation_date DESC, mo.id DESC
+            FROM wells_history wh
+            JOIN wells w ON wh.well_id = w.id
+            JOIN users u ON wh.changed_by_user_id = u.id
+            WHERE wh.well_id = ?
+            ORDER BY wh.recorded_time DESC, wh.id DESC
             LIMIT ?
         ''', (well_id, limit)).fetchall()
         
@@ -319,14 +312,14 @@ def get_all_maintenance_operations(limit=100):
     try:
         operations = conn.execute('''
             SELECT 
-                mo.*,
+                wh.*, wh.recorded_time as operation_date, NULL as operation_time,
                 u.full_name as recorded_by_name,
                 w.well_number,
                 w.name as well_name
-            FROM maintenance_operations mo
-            JOIN wells w ON mo.well_id = w.id
-            JOIN users u ON mo.recorded_by_user_id = u.id
-            ORDER BY mo.operation_date DESC, mo.id DESC
+            FROM wells_history wh
+            JOIN wells w ON wh.well_id = w.id
+            JOIN users u ON wh.changed_by_user_id = u.id
+            ORDER BY wh.recorded_time DESC, wh.id DESC
             LIMIT ?
         ''', (limit,)).fetchall()
         
@@ -347,16 +340,16 @@ def get_well_statistics(well_id):
     try:
         # تعداد عملیات تعمیرات
         maintenance_count = conn.execute(
-            'SELECT COUNT(*) FROM maintenance_operations WHERE well_id = ?',
+            'SELECT COUNT(*) FROM wells_history WHERE well_id = ?',
             (well_id,)
         ).fetchone()[0]
         
-        # آخرین عملیات تعمیرات
+        # آخرین عملیات تعمیرات (از wells_history)
         last_maintenance = conn.execute('''
-            SELECT operation_type, operation_date, description 
-            FROM maintenance_operations 
+            SELECT change_type as operation_type, recorded_time as operation_date, description 
+            FROM wells_history 
             WHERE well_id = ? 
-            ORDER BY operation_date DESC 
+            ORDER BY recorded_time DESC 
             LIMIT 1
         ''', (well_id,)).fetchone()
         

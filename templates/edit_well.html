@@ -63,16 +63,7 @@
                             <input type="text" class="form-control" name="well_diameter" 
                                    value="{{ well.well_diameter or '' }}" placeholder="مثال: 8">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">نوع Casing</label>
-                            <input type="text" class="form-control" name="casing_type" 
-                                   value="{{ well.casing_type or '' }}" placeholder="مثال: PVC, Steel">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">تاریخ نصب چاه</label>
-                            <input type="date" class="form-control" name="well_installation_date" 
-                                   value="{{ well.well_installation_date or '' }}">
-                        </div>
+                        <!-- removed: casing_type, well_installation_date (not needed) -->
                     </div>
 
                     <!-- اطلاعات پمپ -->
@@ -103,11 +94,7 @@
                                 <option value="سه فاز" {% if well.current_pump_phase == 'سه فاز' %}selected{% endif %}>سه فاز</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">تاریخ نصب تجهیزات</label>
-                            <input type="date" class="form-control" name="current_equipment_installation_date" 
-                                   value="{{ well.current_equipment_installation_date or '' }}">
-                        </div>
+                        <!-- removed: current_equipment_installation_date -->
                     </div>
 
                     <!-- اطلاعات کابل و لوله -->
@@ -115,12 +102,7 @@
                         <div class="col-12">
                             <h5 class="border-bottom pb-2">🔌 اطلاعات کابل و لوله</h5>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">مشخصات کابل</label>
-                            <input type="text" class="form-control" name="current_cable_specs" 
-                                   value="{{ well.current_cable_specs or '' }}" 
-                                   placeholder="مثال: کابل 4x16mm² - 400V">
-                        </div>
+                        <!-- removed: current_cable_specs -->
                         <div class="col-md-3 mb-3">
                             <label class="form-label">جنس لوله</label>
                             <input type="text" class="form-control" name="current_pipe_material" 
