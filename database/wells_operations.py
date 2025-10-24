@@ -5,6 +5,10 @@
 
 from .models import get_db_connection
 from datetime import datetime
+import json
+
+# Roles allowed to register maintenance. Adjust as needed.
+ALLOWED_MAINTENANCE_ROLES = ('admin', 'maintenance', 'technician')
 
 def get_all_wells(include_pump_info=True):
     """
@@ -178,16 +182,35 @@ def create_maintenance_operation(operation_data):
     ثبت عملیات تعمیر و نگهداری برای چاه
     """
     conn = get_db_connection()
-    
+
     try:
         # اعتبارسنجی داده‌های ورودی
         required_fields = ['well_id', 'recorded_by_user_id', 'operation_type', 'operation_date', 'description']
         for field in required_fields:
             if not operation_data.get(field):
                 return {'success': False, 'error': f'فیلد {field} الزامی است'}
-        
-        # ثبت عملیات تعمیرات
-        conn.execute('''
+
+        user_id = operation_data['recorded_by_user_id']
+        # check user role/permission
+        user = conn.execute('SELECT role FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user:
+            return {'success': False, 'error': 'کاربر ثبت‌کننده یافت نشد'}
+        role = user['role']
+        if role not in ALLOWED_MAINTENANCE_ROLES:
+            return {'success': False, 'error': 'شما مجوز ثبت تعمیرات را ندارید'}
+
+        # start transaction
+        conn.execute('BEGIN')
+
+        # read current well values
+        well_id = operation_data['well_id']
+        old_well = conn.execute('SELECT * FROM wells WHERE id = ?', (well_id,)).fetchone()
+        if not old_well:
+            conn.execute('ROLLBACK')
+            return {'success': False, 'error': 'چاه مورد نظر یافت نشد'}
+
+        # prepare maintenance insert
+        cursor = conn.execute('''
             INSERT INTO maintenance_operations (
                 well_id, recorded_by_user_id, operation_type, operation_date,
                 operation_time, description, parts_used, duration_minutes,
@@ -206,13 +229,54 @@ def create_maintenance_operation(operation_data):
             operation_data.get('status', 'completed'),
             operation_data.get('notes', '')
         ))
-        
-        conn.commit()
-        
-        return {'success': True, 'message': 'عملیات تعمیرات با موفقیت ثبت شد'}
-        
+
+        maintenance_id = cursor.lastrowid
+
+        # handle well field updates if provided
+        well_updates = operation_data.get('well_updates', {}) or {}
+
+        allowed_fields = [
+            'name', 'location', 'total_depth', 'pump_installation_depth', 'well_diameter', 'casing_type',
+            'current_pump_brand', 'current_pump_model', 'current_pump_power', 'current_pump_phase',
+            'current_cable_specs', 'current_pipe_material', 'current_pipe_specs', 'current_pipe_diameter',
+            'current_pipe_length_m', 'main_cable_specs', 'well_cable_specs', 'current_panel_specs',
+            'well_installation_date', 'current_equipment_installation_date', 'status', 'notes'
+        ]
+
+        changed_fields = {}
+        update_fields = {}
+        for key in allowed_fields:
+            if key in well_updates:
+                old_val = old_well[key] if key in old_well.keys() else None
+                new_val = well_updates.get(key)
+                # normalize for comparison
+                old_s = '' if old_val is None else str(old_val)
+                new_s = '' if new_val is None else str(new_val)
+                if old_s != new_s:
+                    changed_fields[key] = [old_val, new_val]
+                    update_fields[key] = new_val
+
+        # if there are updates, perform update on wells
+        if update_fields:
+            update_fields['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            set_clause = ', '.join([f"{k} = ?" for k in update_fields.keys()])
+            values = list(update_fields.values())
+            values.append(well_id)
+            conn.execute(f'UPDATE wells SET {set_clause} WHERE id = ?', values)
+
+        conn.execute('COMMIT')
+
+        result = {'success': True, 'message': 'عملیات تعمیرات با موفقیت ثبت شد', 'maintenance_id': maintenance_id}
+        if changed_fields:
+            result['changed_fields'] = json.dumps(changed_fields, ensure_ascii=False)
+
+        return result
+
     except Exception as e:
-        conn.rollback()
+        try:
+            conn.execute('ROLLBACK')
+        except:
+            pass
         return {'success': False, 'error': f'خطا در ثبت عملیات تعمیرات: {str(e)}'}
     finally:
         conn.close()

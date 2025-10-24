@@ -167,6 +167,36 @@ def well_maintenance(well_id):
             'status': request.form.get('status', 'completed'),
             'notes': request.form.get('notes')
         }
+        # collect optional well field updates from the maintenance form
+        well_updates = {
+            'name': request.form.get('name'),
+            'location': request.form.get('location'),
+            'total_depth': request.form.get('total_depth'),
+            'pump_installation_depth': request.form.get('pump_installation_depth'),
+            'well_diameter': request.form.get('well_diameter'),
+            'casing_type': request.form.get('casing_type'),
+            'current_pump_brand': request.form.get('current_pump_brand'),
+            'current_pump_model': request.form.get('current_pump_model'),
+            'current_pump_power': request.form.get('current_pump_power'),
+            'current_pump_phase': request.form.get('current_pump_phase'),
+            'current_cable_specs': request.form.get('current_cable_specs'),
+            'current_pipe_material': request.form.get('current_pipe_material'),
+            'current_pipe_specs': request.form.get('current_pipe_specs'),
+            'current_pipe_diameter': request.form.get('current_pipe_diameter'),
+            'current_pipe_length_m': request.form.get('current_pipe_length_m'),
+            'main_cable_specs': request.form.get('main_cable_specs'),
+            'well_cable_specs': request.form.get('well_cable_specs'),
+            'current_panel_specs': request.form.get('current_panel_specs'),
+            'well_installation_date': request.form.get('well_installation_date'),
+            'current_equipment_installation_date': request.form.get('current_equipment_installation_date'),
+            'status': request.form.get('status'),
+            'notes': request.form.get('notes')
+        }
+
+        # remove keys with None to avoid unnecessary updates
+        well_updates = {k: v for k, v in well_updates.items() if v is not None}
+        if well_updates:
+            operation_data['well_updates'] = well_updates
         
         # ثبت عملیات تعمیرات
         result = create_maintenance_operation(operation_data)
