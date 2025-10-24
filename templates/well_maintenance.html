@@ -32,36 +32,9 @@
                         <h5 class="mb-0">➕ ثبت عملیات تعمیرات جدید</h5>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">خلاصه تغییرات (پیش‌نمایش)</label>
-                            <div id="wellDiffSummary" class="border rounded p-2 bg-light text-muted">هیچ تغییری هنوز اعمال نشده است.</div>
-                        </div>
+                        <!-- summary preview removed per UX request -->
                         <form method="POST">
-                            <div class="mb-3">
-                                <label class="form-label">نوع عملیات</label>
-                                <select class="form-select" name="operation_type" required>
-                                    <option value="">انتخاب کنید</option>
-                                    <option value="تعمیرات دوره‌ای">تعمیرات دوره‌ای</option>
-                                    <option value="تعویض پمپ">تعویض پمپ</option>
-                                    <option value="تعمیر الکتروموتور">تعمیر الکتروموتور</option>
-                                    <option value="تعویض کابل">تعویض کابل</option>
-                                    <option value="تعویض لوله">تعویض لوله</option>
-                                    <option value="تمیزکاری چاه">تمیزکاری چاه</option>
-                                    <option value="بازرسی فنی">بازرسی فنی</option>
-                                    <option value="سایر">سایر</option>
-                                </select>
-                            </div>
-
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">تاریخ عملیات</label>
-                                    <input type="date" class="form-control" name="operation_date" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">زمان عملیات</label>
-                                    <input type="time" class="form-control" name="operation_time">
-                                </div>
-                            </div>
+                            <!-- operation type/date/performed_by moved into the update section below -->
 
                             <div class="mb-3">
                                 <label class="form-label">شرح عملیات</label>
@@ -109,106 +82,31 @@
                             <h6>به‌روزرسانی مشخصات چاه (اختیاری)</h6>
                             <p class="text-muted small">در صورت تغییر هر یک از مشخصات فنی یا تجهیزاتی، آن‌ها را وارد کنید تا هنگام ثبت تعمیرات، چاه به‌روزرسانی شود.</p>
 
-                            <div class="accordion mb-3" id="wellUpdateAccordion">
-                                <div class="accordion-item">
-                                    <h2 class="accordion-header" id="headingOne">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                                            به‌روزرسانی کامل مشخصات چاه (نمایش/مخفی)
-                                        </button>
-                                    </h2>
-                                    <div id="collapseOne" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#wellUpdateAccordion">
-                                        <div class="accordion-body">
-                                            <div class="row">
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">نام چاه</label>
-                                                    <input type="text" class="form-control" name="name" value="{{ well.name or '' }}">
-                                                </div>
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">موقعیت</label>
-                                                    <input type="text" class="form-control" name="location" value="{{ well.location or '' }}">
-                                                </div>
-
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">عمق کل چاه (متر)</label>
-                                                    <input type="number" step="0.01" class="form-control" name="total_depth" value="{{ well.total_depth or '' }}">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">عمق نصب پمپ (متر)</label>
-                                                    <input type="number" step="0.01" class="form-control" name="pump_installation_depth" value="{{ well.pump_installation_depth or '' }}">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">قطر چاه</label>
-                                                    <input type="text" class="form-control" name="well_diameter" value="{{ well.well_diameter or '' }}">
-                                                </div>
-
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">برند پمپ</label>
-                                                    <input type="text" class="form-control" name="current_pump_brand" value="{{ well.current_pump_brand or '' }}">
-                                                </div>
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">مدل پمپ</label>
-                                                    <input type="text" class="form-control" name="current_pump_model" value="{{ well.current_pump_model or '' }}">
-                                                </div>
-
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">قدرت پمپ</label>
-                                                    <input type="text" class="form-control" name="current_pump_power" value="{{ well.current_pump_power or '' }}">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">فاز</label>
-                                                    <select class="form-select" name="current_pump_phase">
-                                                        <option value="">انتخاب کنید</option>
-                                                        <option value="تک فاز" {% if well.current_pump_phase == 'تک فاز' %}selected{% endif %}>تک فاز</option>
-                                                        <option value="سه فاز" {% if well.current_pump_phase == 'سه فاز' %}selected{% endif %}>سه فاز</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">مشخصات تابلو</label>
-                                                    <input type="text" class="form-control" name="current_panel_specs" value="{{ well.current_panel_specs or '' }}">
-                                                </div>
-
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">جنس لوله</label>
-                                                    <input type="text" class="form-control" name="current_pipe_material" value="{{ well.current_pipe_material or '' }}">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">مشخصات لوله</label>
-                                                    <input type="text" class="form-control" name="current_pipe_specs" value="{{ well.current_pipe_specs or '' }}">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">قطر لوله (مثال: 50mm)</label>
-                                                    <input type="text" class="form-control" name="current_pipe_diameter" value="{{ well.current_pipe_diameter or '' }}">
-                                                </div>
-                                                <div class="col-md-4 mb-2">
-                                                    <label class="form-label">متراژ لوله (متر)</label>
-                                                    <input type="number" step="0.01" class="form-control" name="current_pipe_length_m" value="{{ well.current_pipe_length_m or '' }}">
-                                                </div>
-
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">کابل اصلی</label>
-                                                    <input type="text" class="form-control" name="main_cable_specs" value="{{ well.main_cable_specs or '' }}">
-                                                </div>
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">کابل چاه</label>
-                                                    <input type="text" class="form-control" name="well_cable_specs" value="{{ well.well_cable_specs or '' }}">
-                                                </div>
-
-                                                <!-- removed: well_installation_date -->
-                                                <div class="col-md-6 mb-2">
-                                                    <label class="form-label">وضعیت چاه</label>
-                                                    <select class="form-select" name="status">
-                                                        <option value="active" {% if well.status == 'active' %}selected{% endif %}>فعال</option>
-                                                        <option value="maintenance" {% if well.status == 'maintenance' %}selected{% endif %}>در حال تعمیر</option>
-                                                        <option value="inactive" {% if well.status == 'inactive' %}selected{% endif %}>غیرفعال</option>
-                                                    </select>
-                                                </div>
-
-                                                <div class="col-12 mt-2">
-                                                    <label class="form-label">یادداشت‌های مرتبط با به‌روزرسانی</label>
-                                                    <textarea class="form-control" name="notes" rows="2" placeholder="توضیحات اضافی دربارهٔ تغییرات...">{{ well.notes or '' }}</textarea>
-                                                </div>
-                                            </div>
-                                        </div>
+                            <div class="mb-3">
+                                <h6>به‌روزرسانی مشخصات چاه (فقط فیلدهای ثبت عملیات)</h6>
+                                <p class="text-muted small">فقط موارد زیر برای ثبت تعمیرات لازم است. در صورت نیاز می‌توانید توضیح تکمیلی وارد کنید.</p>
+                                <div class="mb-2">
+                                    <label class="form-label">نوع عملیات</label>
+                                    <select class="form-select" name="operation_type" required>
+                                        <option value="">انتخاب کنید</option>
+                                        <option value="تعمیرات دوره‌ای">تعمیرات دوره‌ای</option>
+                                        <option value="تعویض پمپ">تعویض پمپ</option>
+                                        <option value="تعمیر الکتروموتور">تعمیر الکتروموتور</option>
+                                        <option value="تعویض کابل">تعویض کابل</option>
+                                        <option value="تعویض لوله">تعویض لوله</option>
+                                        <option value="تمیزکاری چاه">تمیزکاری چاه</option>
+                                        <option value="بازرسی فنی">بازرسی فنی</option>
+                                        <option value="سایر">سایر</option>
+                                    </select>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label">تاریخ عملیات</label>
+                                        <input type="date" class="form-control" name="operation_date" required>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label">توسط</label>
+                                        <input type="text" class="form-control" name="performed_by" placeholder="نام تکنسین یا شرکت اجرا کننده">
                                     </div>
                                 </div>
                             </div>
@@ -340,54 +238,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const today = new Date().toISOString().split('T')[0];
     document.querySelector('input[name="operation_date"]').value = today;
 });
-// client-side diff preview: build initial snapshot and watch inputs
-document.addEventListener('DOMContentLoaded', function() {
-    const diffFields = [
-        'name','location','total_depth','pump_installation_depth','well_diameter',
-        'current_pump_brand','current_pump_model','current_pump_power','current_pump_phase',
-        'current_pipe_material','current_pipe_specs','current_pipe_diameter','current_pipe_length_m',
-        'main_cable_specs','well_cable_specs','current_panel_specs','status','notes'
-    ];
-
-    const initial = {};
-    diffFields.forEach(f => {
-        const el = document.querySelector(`[name="${f}"]`);
-        initial[f] = el ? (el.value || '') : '';
-    });
-
-    function readVal(name) {
-        const el = document.querySelector(`[name="${name}"]`);
-        return el ? (el.value || '') : '';
-    }
-
-    function computeDiff() {
-        const changes = [];
-        diffFields.forEach(f => {
-            const oldVal = String(initial[f] || '');
-            const newVal = String(readVal(f) || '');
-            const oldNum = parseFloat(oldVal);
-            const newNum = parseFloat(newVal);
-            const isNum = !isNaN(oldNum) && !isNaN(newNum);
-            const differs = isNum ? oldNum !== newNum : oldVal !== newVal;
-            if (differs) changes.push({field: f, old: oldVal, new: newVal});
-        });
-
-        const container = document.getElementById('wellDiffSummary');
-        if (!container) return;
-        if (changes.length === 0) {
-            container.innerHTML = '<small class="text-muted">هیچ تغییری انتخاب نشده است. در صورت نیاز فقط علت/توضیحات را وارد کنید تا تاریخچه ثبت شود.</small>';
-        } else {
-            container.innerHTML = changes.map(c => `<div><strong>${c.field}</strong>: <span class="text-muted">${c.old || '<خالی>'} → </span><span class="text-success">${c.new || '<خالی>'}</span></div>`).join('');
-        }
-    }
-
-    diffFields.forEach(f => {
-        const el = document.querySelector(`[name="${f}"]`);
-        if (el) el.addEventListener('input', computeDiff);
-    });
-
-    // initial compute
-    computeDiff();
-});
+// no client-side diff preview (removed as requested)
 </script>
 {% endblock %}
