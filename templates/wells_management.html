@@ -114,14 +114,6 @@
                                 <td>{{ well.created_at_jalali or '-' }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="/wells/{{ well.id }}" class="btn btn-info" 
-                                           data-bs-toggle="tooltip" title="مشاهده جزئیات">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <a href="/wells/{{ well.id }}/edit" class="btn btn-warning"
-                                           data-bs-toggle="tooltip" title="ویرایش اطلاعات">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
                                         <a href="/wells/{{ well.id }}/maintenance" class="btn btn-primary"
                                            data-bs-toggle="tooltip" title="مدیریت تعمیرات">
                                             <i class="bi bi-tools"></i>
@@ -175,7 +167,7 @@ async function performSearch() {
             
             data.results.forEach(well => {
                 html += `
-                    <a href="/wells/${well.id}" class="list-group-item list-group-item-action">
+                    <a href="/wells/${well.id}/maintenance" class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">چاه ${well.well_number} - ${well.name}</h6>
                             <span class="badge ${well.pump_status ? 'bg-success' : 'bg-danger'}">

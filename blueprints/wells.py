@@ -45,58 +45,6 @@ def wells_management():
                              'maintenance': maintenance_wells
                          })
 
-@wells_bp.route('/wells/<int:well_id>')
-def well_details(well_id):
-    """صفحه جزئیات چاه"""
-    if 'user_id' not in session:
-        flash('لطفا ابتدا وارد شوید', 'error')
-        return redirect('/login')
-    
-    # دریافت اطلاعات چاه
-    well = get_well_by_id(well_id)
-    if not well:
-        flash('چاه مورد نظر یافت نشد', 'error')
-        return redirect('/wells')
-    
-    # دریافت تاریخچه تعمیرات
-    maintenance_operations = get_well_maintenance_operations(well_id)
-    
-    # دریافت آمار چاه
-    statistics = get_well_statistics(well_id)
-    
-    # تبدیل تاریخ‌ها به شمسی
-    well_data = dict(well)
-    if well['created_at']:
-        jalali_datetime = gregorian_to_jalali(well['created_at'])
-        parts = jalali_datetime.split(' ')
-        well_data['created_at_jalali'] = parts[0]
-    
-    if well['updated_at']:
-        jalali_datetime = gregorian_to_jalali(well['updated_at'])
-        parts = jalali_datetime.split(' ')
-        well_data['updated_at_jalali'] = parts[0]
-    
-    # تبدیل تاریخ‌های تعمیرات
-    maintenance_with_jalali = []
-    for operation in maintenance_operations:
-        op_dict = dict(operation)
-        if operation['operation_date']:
-            # operation_date may be a date or datetime; handle both
-            try:
-                od = operation['operation_date']
-                if ' ' in od or ':' in od:
-                    jalali_date = gregorian_to_jalali(od)
-                else:
-                    jalali_date = gregorian_to_jalali(od + ' 00:00:00')
-                op_dict['operation_date_jalali'] = jalali_date.split(' ')[0]
-            except Exception:
-                op_dict['operation_date_jalali'] = operation['operation_date']
-        maintenance_with_jalali.append(op_dict)
-    
-    return render_template('well_details.html', 
-                         well=well_data,
-                         maintenance_operations=maintenance_with_jalali,
-                         statistics=statistics)
 
 @wells_bp.route('/wells/<int:well_id>/edit', methods=['GET', 'POST'])
 def edit_well(well_id):
@@ -165,7 +113,8 @@ def well_maintenance(well_id):
         
         if result['success']:
             flash(result['message'], 'success')
-            return redirect(f'/wells/{well_id}')
+            # stay on the maintenance page after successful submit
+            return redirect(f'/wells/{well_id}/maintenance')
         else:
             flash(result['error'], 'error')
     

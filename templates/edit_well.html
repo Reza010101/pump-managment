@@ -12,8 +12,8 @@
                     <i class="bi bi-pencil"></i>
                     ویرایش اطلاعات چاه {{ well.well_number }} - {{ well.name }}
                 </h4>
-                <a href="/wells/{{ well.id }}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-right"></i> بازگشت
+                <a href="/wells/{{ well.id }}/maintenance" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-tools"></i> مدیریت تعمیرات
                 </a>
             </div>
             <div class="card-body">
@@ -159,7 +159,7 @@
                     <div class="row">
                         <div class="col-12">
                             <div class="d-flex gap-2 justify-content-end">
-                                <a href="/wells/{{ well.id }}" class="btn btn-secondary">انصراف</a>
+                                <a href="/wells/{{ well.id }}/maintenance" class="btn btn-secondary">انصراف</a>
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-check-lg"></i> ذخیره تغییرات
                                 </button>
