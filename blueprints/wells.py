@@ -1,8 +1,8 @@
 # blueprints/wells.py
 from flask import Blueprint, render_template, request, session, redirect, flash, jsonify
 from database.wells_operations import (
-    get_all_wells, get_well_by_id, update_well, 
-    create_maintenance_operation, get_well_maintenance_operations,
+    get_all_wells, get_well_by_id, 
+    record_well_event, get_well_maintenance_operations,
     get_well_statistics, search_wells
 )
 from database.models import get_db_connection
@@ -60,7 +60,7 @@ def edit_well(well_id):
 
 @wells_bp.route('/wells/<int:well_id>/maintenance', methods=['GET', 'POST'])
 def well_maintenance(well_id):
-    """مدیریت تعمیرات چاه"""
+    """Manages well maintenance, serving as the single point for updates."""
     if 'user_id' not in session:
         flash('لطفا ابتدا وارد شوید', 'error')
         return redirect('/login')
@@ -71,68 +71,59 @@ def well_maintenance(well_id):
         return redirect('/wells')
     
     if request.method == 'POST':
-        # جمع‌آوری داده‌های فرم تعمیرات
-        operation_data = {
+        # Consolidate all form data into a single event dictionary
+        event_data = {
             'well_id': well_id,
             'recorded_by_user_id': session['user_id'],
             'operation_type': request.form.get('operation_type'),
             'operation_date': request.form.get('operation_date'),
-            'operation_time': request.form.get('operation_time'),
             'performed_by': request.form.get('performed_by'),
-            'notes': request.form.get('notes')
+            'notes': request.form.get('notes'),
+            'well_updates': {
+                'name': request.form.get('name'),
+                'location': request.form.get('location'),
+                'total_depth': request.form.get('total_depth'),
+                'pump_installation_depth': request.form.get('pump_installation_depth'),
+                'well_diameter': request.form.get('well_diameter'),
+                'current_pump_brand': request.form.get('current_pump_brand'),
+                'current_pump_model': request.form.get('current_pump_model'),
+                'current_pump_power': request.form.get('current_pump_power'),
+                'current_pipe_material': request.form.get('current_pipe_material'),
+                'current_pipe_diameter': request.form.get('current_pipe_diameter'),
+                'current_pipe_length_m': request.form.get('current_pipe_length_m'),
+                'main_cable_specs': request.form.get('main_cable_specs'),
+                'well_cable_specs': request.form.get('well_cable_specs'),
+                'current_panel_specs': request.form.get('current_panel_specs'),
+                'status': request.form.get('status'),
+                'notes': request.form.get('notes')
+            }
         }
-        # collect optional well field updates from the maintenance form
-        well_updates = {
-            'name': request.form.get('name'),
-            'location': request.form.get('location'),
-            'total_depth': request.form.get('total_depth'),
-            'pump_installation_depth': request.form.get('pump_installation_depth'),
-            'well_diameter': request.form.get('well_diameter'),
-            'current_pump_brand': request.form.get('current_pump_brand'),
-            'current_pump_model': request.form.get('current_pump_model'),
-            'current_pump_power': request.form.get('current_pump_power'),
-            'current_pipe_material': request.form.get('current_pipe_material'),
-            'current_pipe_diameter': request.form.get('current_pipe_diameter'),
-            'current_pipe_length_m': request.form.get('current_pipe_length_m'),
-            'main_cable_specs': request.form.get('main_cable_specs'),
-            'well_cable_specs': request.form.get('well_cable_specs'),
-            'current_panel_specs': request.form.get('current_panel_specs'),
-            'status': request.form.get('status'),
-            'notes': request.form.get('notes')
-        }
-
-        # remove keys with None to avoid unnecessary updates
-        well_updates = {k: v for k, v in well_updates.items() if v is not None}
-        if well_updates:
-            operation_data['well_updates'] = well_updates
         
-        # ثبت عملیات تعمیرات
-        result = create_maintenance_operation(operation_data)
+        # Use the new unified function to record the event
+        result = record_well_event(event_data)
         
         if result['success']:
             flash(result['message'], 'success')
-            # stay on the maintenance page after successful submit
             return redirect(f'/wells/{well_id}/maintenance')
         else:
-            flash(result['error'], 'error')
+            flash(result.get('error', 'یک خطای ناشناخته رخ داد'), 'error')
     
-    # دریافت تاریخچه تعمیرات
+    # Fetch history using the updated operations function
     maintenance_operations = get_well_maintenance_operations(well_id)
     
-    # تبدیل تاریخ‌ها به شمسی
+    # Convert dates to Jalali for display
     maintenance_with_jalali = []
     for operation in maintenance_operations:
         op_dict = dict(operation)
-        if operation['operation_date']:
+        # Use 'operation_date' from the history record
+        if op_dict.get('operation_date'):
             try:
-                od = operation['operation_date']
-                if ' ' in od or ':' in od:
-                    jalali_date = gregorian_to_jalali(od)
-                else:
-                    jalali_date = gregorian_to_jalali(od + ' 00:00:00')
+                # Ensure it's treated as a date string
+                date_str = str(op_dict['operation_date']).split(' ')[0]
+                jalali_date = gregorian_to_jalali(date_str + ' 00:00:00')
                 op_dict['operation_date_jalali'] = jalali_date.split(' ')[0]
             except Exception:
-                op_dict['operation_date_jalali'] = operation['operation_date']
+                op_dict['operation_date_jalali'] = op_dict['operation_date']
         maintenance_with_jalali.append(op_dict)
     
     return render_template('well_maintenance.html', 

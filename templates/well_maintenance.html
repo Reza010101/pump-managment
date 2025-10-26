@@ -187,13 +187,18 @@
                                     {% for operation in maintenance_operations %}
                                     <tr>
                                         <td>
-                                            <small>{{ operation.recorded_date_jalali or operation.recorded_date or operation.operation_date_jalali or operation.operation_date }}</small>
+                                            <small>{{ operation.operation_date_jalali or operation.operation_date }}</small>
                                         </td>
                                         <td><span class="badge bg-info">{{ operation.operation_type }}</span></td>
                                         <td>{{ operation.performed_by or operation.changed_by_user_name or '-' }}</td>
-                                        <td title="{{ operation.reason or operation.change_type or '' }}">{{ (operation.reason or operation.change_type)[:60] }}{% if (operation.reason or operation.change_type)|length > 60 %}...{% endif %}</td>
+                                        <td title="{{ operation.reason or '' }}">{{ (operation.reason or '')[:60] }}{% if (operation.reason or '')|length > 60 %}...{% endif %}</td>
                                         <td>
-                                            <span class="badge bg-secondary">—</span>
+                                            {% set changes = from_json(operation.changed_fields) %}
+                                            {% if changes %}
+                                                <span class="badge bg-warning text-dark" title="{{ changes|join(', ') }}">{{ changes|length }} تغییر</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">—</span>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-info" onclick="showMaintenanceDetails({{ operation.id }})" data-bs-toggle="tooltip" title="مشاهده جزئیات">
