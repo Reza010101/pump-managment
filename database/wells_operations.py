@@ -142,9 +142,7 @@ def update_well(well_id, well_data):
             'current_pump_brand': well_data.get('current_pump_brand'),
             'current_pump_model': well_data.get('current_pump_model'),
             'current_pump_power': well_data.get('current_pump_power'),
-            'current_pump_phase': well_data.get('current_pump_phase'),
             'current_pipe_material': well_data.get('current_pipe_material'),
-            'current_pipe_specs': well_data.get('current_pipe_specs'),
             'current_pipe_diameter': well_data.get('current_pipe_diameter'),
             'current_pipe_length_m': well_data.get('current_pipe_length_m'),
             'main_cable_specs': well_data.get('main_cable_specs'),
@@ -214,8 +212,8 @@ def create_maintenance_operation(operation_data):
 
         allowed_fields = [
             'name', 'location', 'total_depth', 'pump_installation_depth', 'well_diameter',
-            'current_pump_brand', 'current_pump_model', 'current_pump_power', 'current_pump_phase',
-            'current_pipe_material', 'current_pipe_specs', 'current_pipe_diameter',
+            'current_pump_brand', 'current_pump_model', 'current_pump_power',
+            'current_pipe_material', 'current_pipe_diameter',
             'current_pipe_length_m', 'main_cable_specs', 'well_cable_specs', 'current_panel_specs',
             'status', 'notes'
         ]

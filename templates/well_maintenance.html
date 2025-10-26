@@ -116,14 +116,6 @@
                                     <label class="form-label">قدرت پمپ</label>
                                     <input type="text" class="form-control" name="current_pump_power" value="{{ well.current_pump_power or '' }}">
                                 </div>
-                                <div class="col-md-4 mb-2">
-                                    <label class="form-label">فاز</label>
-                                    <select class="form-select" name="current_pump_phase">
-                                        <option value="">انتخاب کنید</option>
-                                        <option value="تک فاز" {% if well.current_pump_phase == 'تک فاز' %}selected{% endif %}>تک فاز</option>
-                                        <option value="سه فاز" {% if well.current_pump_phase == 'سه فاز' %}selected{% endif %}>سه فاز</option>
-                                    </select>
-                                </div>
                             </div>
 
                             <!-- کابل و لوله -->
@@ -131,10 +123,6 @@
                                 <div class="col-md-3 mb-2">
                                     <label class="form-label">جنس لوله</label>
                                     <input type="text" class="form-control" name="current_pipe_material" value="{{ well.current_pipe_material or '' }}">
-                                </div>
-                                <div class="col-md-3 mb-2">
-                                    <label class="form-label">مشخصات لوله</label>
-                                    <input type="text" class="form-control" name="current_pipe_specs" value="{{ well.current_pipe_specs or '' }}">
                                 </div>
                                 <div class="col-md-3 mb-2">
                                     <label class="form-label">قطر لوله</label>
