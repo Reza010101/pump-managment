@@ -4,6 +4,8 @@ from flask import send_file
 from database.reports import get_operating_hours_report, get_status_at_time_report, get_full_history_report
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, Alignment
+from database.wells_operations import get_all_wells
+from utils.date_utils import gregorian_to_jalali
 
 def export_operating_hours_to_excel(date_jalali, month_jalali, report_type):
     """خروجی اکسل برای گزارش ساعات کارکرد"""
@@ -154,5 +156,54 @@ def create_sample_excel_file():
         output,
         as_attachment=True,
         download_name='pump_history_sample.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+def export_wells_to_excel():
+    """صادرات اکسل برای مشخصات چاه‌ها (لیست چاه‌ها)"""
+    wells = get_all_wells()
+
+    if not wells:
+        from flask import flash, redirect
+        flash('هیچ چاهی برای دانلود وجود ندارد', 'warning')
+        return redirect('/wells')
+
+    data = []
+    for w in wells:
+        # ensure dict-like access
+        row = dict(w)
+        created = row.get('created_at')
+        created_j = gregorian_to_jalali(created).split(' ')[0] if created else ''
+
+        # Exclude: 'نام چاه', 'شماره پمپ مرتبط', 'وضعیت پمپ', 'تاریخ ایجاد'
+        data.append({
+            'شماره چاه': row.get('well_number'),
+            'موقعیت': row.get('location'),
+            'عمق کل': row.get('total_depth'),
+            'عمق نصب پمپ': row.get('pump_installation_depth'),
+            'قطر چاه': row.get('well_diameter'),
+            'برند پمپ': row.get('current_pump_brand'),
+            'مدل پمپ': row.get('current_pump_model'),
+            'قدرت پمپ': row.get('current_pump_power'),
+            'جنس لوله': row.get('current_pipe_material'),
+            'قطر لوله': row.get('current_pipe_diameter'),
+            'متراژ لوله (متر)': row.get('current_pipe_length_m'),
+            'کابل اصلی': row.get('main_cable_specs'),
+            'کابل چاه': row.get('well_cable_specs'),
+            'مشخصات تابلو': row.get('current_panel_specs'),
+            'وضعیت': row.get('status')
+        })
+
+    df = pd.DataFrame(data)
+    period_title = "مشخصات چاه‌ها"
+    filename = f'wells_list_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+
+    output = create_excel_with_title(df, period_title, 'چاه‌ها')
+    output.seek(0)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )

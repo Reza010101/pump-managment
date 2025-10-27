@@ -6,7 +6,9 @@ from database.wells_operations import (
     get_well_statistics, search_wells
 )
 from database.models import get_db_connection
+import json
 from utils.date_utils import gregorian_to_jalali
+from utils.export_utils import export_wells_to_excel
 
 wells_bp = Blueprint('wells', __name__)
 
@@ -158,3 +160,84 @@ def api_search_wells():
 # ثبت بلوپرینت در app.py
 def register_wells_blueprint(app):
     app.register_blueprint(wells_bp)
+
+
+@wells_bp.route('/wells/export')
+def wells_export():
+    """Export wells list to Excel file."""
+    if 'user_id' not in session:
+        flash('لطفا ابتدا وارد شوید', 'error')
+        return redirect('/login')
+
+    # Delegate to export utility which returns a Flask response
+    return export_wells_to_excel()
+
+
+# API: get a single wells_history record by id (used by the maintenance details modal)
+@wells_bp.route('/api/wells/history/<int:history_id>')
+def api_get_wells_history(history_id):
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'لطفا ابتدا وارد شوید'})
+
+    # import here to avoid circular imports
+    from database.wells_operations import get_history_by_id
+
+    record = get_history_by_id(history_id)
+    if not record:
+        return jsonify({'success': False, 'error': 'رکورد مورد نظر یافت نشد'})
+
+    # changed_fields is stored as JSON list, changed_values as JSON mapping
+    try:
+        changed_fields = json.loads(record.get('changed_fields') or '[]')
+    except Exception:
+        changed_fields = []
+    try:
+        changed_values = json.loads(record.get('changed_values') or '{}')
+    except Exception:
+        changed_values = {}
+
+    # human readable labels for fields
+    field_labels = {
+        'name': 'نام چاه',
+        'location': 'موقعیت',
+        'total_depth': 'عمق کل',
+        'pump_installation_depth': 'عمق نصب',
+        'well_diameter': 'قطر چاه',
+        'current_pump_brand': 'برند پمپ',
+        'current_pump_model': 'مدل پمپ',
+        'current_pump_power': 'قدرت پمپ',
+        'current_pipe_material': 'جنس لوله',
+        'current_pipe_diameter': 'قطر لوله',
+        'current_pipe_length_m': 'متراژ لوله',
+        'main_cable_specs': 'کابل اصلی',
+        'well_cable_specs': 'کابل چاه',
+        'current_panel_specs': 'مشخصات تابلو',
+        'status': 'وضعیت',
+        'notes': 'یادداشت'
+    }
+
+    # build human readable changes
+    changes_human = []
+    for f in changed_fields:
+        label = field_labels.get(f, f)
+        val = changed_values.get(f)
+        if val and isinstance(val, dict) and ('old' in val or 'new' in val):
+            old = '' if val.get('old') is None else val.get('old')
+            new = '' if val.get('new') is None else val.get('new')
+            changes_human.append(f"{label} از {old} به {new} تغییر کرد")
+        else:
+            changes_human.append(label)
+
+    payload = {
+        'success': True,
+        'record': {
+            'id': record.get('id'),
+            'operation_date': record.get('operation_date'),
+            'operation_type': record.get('operation_type'),
+            'performed_by': record.get('performed_by'),
+            'reason': record.get('reason'),
+            'changes': changes_human
+        }
+    }
+
+    return jsonify(payload)
