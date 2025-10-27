@@ -246,20 +246,60 @@
 {% block scripts %}
 <script>
 function showMaintenanceDetails(operationId) {
-    // در اینجا می‌توانید از AJAX برای دریافت جزئیات کامل استفاده کنید
-    // فعلاً یک پیام ساده نمایش می‌دهیم
-    document.getElementById('maintenanceDetailsBody').innerHTML = `
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle"></i>
-            جزئیات کامل این عملیات تعمیرات در نسخه‌های بعدی اضافه خواهد شد.
-        </div>
-        <div class="text-center">
-            <p>این قابلیت به زودی اضافه خواهد شد...</p>
-        </div>
-    `;
-    
-    const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
-    modal.show();
+    // Fetch full details for the given history id and render into the modal
+    fetch(`/api/wells/history/${operationId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                document.getElementById('maintenanceDetailsBody').innerHTML = `
+                    <div class="alert alert-warning">${data.error || 'خطا در دریافت جزئیات'}</div>`;
+            } else {
+                const rec = data.record;
+                                                                    // build HTML: show date / operation type / performed by in one row
+                                                                    let html = `
+                                                                                    <div class="row mb-3">
+                                                                                        <div class="col-md-4">
+                                                                                            <div class="small text-muted">تاریخ</div>
+                                                                                            <div>${rec.operation_date || '-'}</div>
+                                                                                        </div>
+                                                                                        <div class="col-md-4">
+                                                                                            <div class="small text-muted">نوع عملیات</div>
+                                                                                            <div>${rec.operation_type || '-'}</div>
+                                                                                        </div>
+                                                                                        <div class="col-md-4">
+                                                                                            <div class="small text-muted">توسط</div>
+                                                                                            <div>${rec.performed_by || '-'}</div>
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    <div class="mb-3">
+                                                                                        <div class="small text-muted">شرح</div>
+                                                                                        <div>${rec.reason ? rec.reason.replace(/\n/g, '<br>') : '-'}</div>
+                                                                                    </div>
+
+                                                                                    <hr>
+                                                                                    <h6>تغییرات</h6>
+                                `;
+
+                if (rec.changes && rec.changes.length) {
+                    html += '<ul class="list-group list-group-flush">';
+                    rec.changes.forEach(ch => {
+                        html += `<li class="list-group-item">${ch}</li>`;
+                    });
+                    html += '</ul>';
+                } else {
+                    html += '<div class="text-muted">تغییری ثبت نشده است.</div>';
+                }
+
+                document.getElementById('maintenanceDetailsBody').innerHTML = html;
+            }
+            const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
+            modal.show();
+        }).catch(err => {
+            document.getElementById('maintenanceDetailsBody').innerHTML = `<div class="alert alert-danger">خطا در ارتباط: ${err}</div>`;
+            const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
+            modal.show();
+        });
 }
 
 // فعال کردن tooltip‌ها
