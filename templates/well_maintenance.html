@@ -148,7 +148,8 @@
 
                             <div class="mb-3">
                                 <label class="form-label">یادداشت‌ها</label>
-                                <textarea class="form-control" name="notes" rows="2">{{ well.notes or '' }}</textarea>
+                                <!-- Always render notes textarea empty so user types a fresh note each time -->
+                                <textarea class="form-control" name="notes" rows="2"></textarea>
                             </div>
 
                             <!-- دکمه ثبت عملیات بعد از مشخصات چاه قرار می‌گیرد -->
@@ -180,7 +181,7 @@
                                         <th>توسط</th>
                                         <th>شرح</th>
                                         <th>وضعیت</th>
-                                        <th>عملیات</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>

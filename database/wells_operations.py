@@ -163,8 +163,9 @@ def record_well_event(event_data):
             'name', 'location', 'total_depth', 'pump_installation_depth', 'well_diameter',
             'current_pump_brand', 'current_pump_model', 'current_pump_power',
             'current_pipe_material', 'current_pipe_diameter', 'current_pipe_length_m',
-            'main_cable_specs', 'well_cable_specs', 'current_panel_specs', 'status', 'notes'
+            'main_cable_specs', 'well_cable_specs', 'current_panel_specs', 'status'
         ]
+
 
         for key in allowed_fields:
             if key in well_updates:
