@@ -12,8 +12,8 @@
                     <i class="bi bi-pencil"></i>
                     ویرایش اطلاعات چاه {{ well.well_number }} - {{ well.name }}
                 </h4>
-                <a href="/wells/{{ well.id }}" class="btn btn-secondary btn-sm">
-                    <i class="bi bi-arrow-right"></i> بازگشت
+                <a href="/wells/{{ well.id }}/maintenance" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-tools"></i> مدیریت تعمیرات
                 </a>
             </div>
             <div class="card-body">
@@ -63,16 +63,7 @@
                             <input type="text" class="form-control" name="well_diameter" 
                                    value="{{ well.well_diameter or '' }}" placeholder="مثال: 8">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">نوع Casing</label>
-                            <input type="text" class="form-control" name="casing_type" 
-                                   value="{{ well.casing_type or '' }}" placeholder="مثال: PVC, Steel">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">تاریخ نصب چاه</label>
-                            <input type="date" class="form-control" name="well_installation_date" 
-                                   value="{{ well.well_installation_date or '' }}">
-                        </div>
+                        <!-- removed: casing_type, well_installation_date (not needed) -->
                     </div>
 
                     <!-- اطلاعات پمپ -->
@@ -103,11 +94,7 @@
                                 <option value="سه فاز" {% if well.current_pump_phase == 'سه فاز' %}selected{% endif %}>سه فاز</option>
                             </select>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">تاریخ نصب تجهیزات</label>
-                            <input type="date" class="form-control" name="current_equipment_installation_date" 
-                                   value="{{ well.current_equipment_installation_date or '' }}">
-                        </div>
+                        <!-- removed: current_equipment_installation_date -->
                     </div>
 
                     <!-- اطلاعات کابل و لوله -->
@@ -115,12 +102,7 @@
                         <div class="col-12">
                             <h5 class="border-bottom pb-2">🔌 اطلاعات کابل و لوله</h5>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">مشخصات کابل</label>
-                            <input type="text" class="form-control" name="current_cable_specs" 
-                                   value="{{ well.current_cable_specs or '' }}" 
-                                   placeholder="مثال: کابل 4x16mm² - 400V">
-                        </div>
+                        <!-- removed: current_cable_specs -->
                         <div class="col-md-3 mb-3">
                             <label class="form-label">جنس لوله</label>
                             <input type="text" class="form-control" name="current_pipe_material" 
@@ -133,11 +115,31 @@
                                    value="{{ well.current_pipe_specs or '' }}" 
                                    placeholder="مثال: 3 اینچ">
                         </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">قطر لوله (مثال: 50mm)</label>
+                            <input type="text" class="form-control" name="current_pipe_diameter"
+                                   value="{{ well.current_pipe_diameter or '' }}" placeholder="مثال: 50mm">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">متراژ لوله (متر)</label>
+                            <input type="number" step="0.01" class="form-control" name="current_pipe_length_m"
+                                   value="{{ well.current_pipe_length_m or '' }}" placeholder="مثال: 120.5">
+                        </div>
                         <div class="col-12 mb-3">
                             <label class="form-label">مشخصات تابلو</label>
                             <input type="text" class="form-control" name="current_panel_specs" 
                                    value="{{ well.current_panel_specs or '' }}" 
                                    placeholder="مثال: تابلو کنترل هوشمند - 400A">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">کابل اصلی</label>
+                            <input type="text" class="form-control" name="main_cable_specs"
+                                   value="{{ well.main_cable_specs or '' }}" placeholder="مثال: کابل 4x25mm²">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">کابل چاه</label>
+                            <input type="text" class="form-control" name="well_cable_specs"
+                                   value="{{ well.well_cable_specs or '' }}" placeholder="مثال: کابل غلاف‌دار 4x16mm²">
                         </div>
                     </div>
 
@@ -157,7 +159,7 @@
                     <div class="row">
                         <div class="col-12">
                             <div class="d-flex gap-2 justify-content-end">
-                                <a href="/wells/{{ well.id }}" class="btn btn-secondary">انصراف</a>
+                                <a href="/wells/{{ well.id }}/maintenance" class="btn btn-secondary">انصراف</a>
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-check-lg"></i> ذخیره تغییرات
                                 </button>

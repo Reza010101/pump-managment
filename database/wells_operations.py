@@ -5,6 +5,10 @@
 
 from .models import get_db_connection
 from datetime import datetime
+import json
+
+# Roles allowed to register maintenance. Adjust as needed.
+ALLOWED_MAINTENANCE_ROLES = ('admin', 'maintenance', 'technician')
 
 def get_all_wells(include_pump_info=True):
     """
@@ -26,13 +30,13 @@ def get_all_wells(include_pump_info=True):
                      ORDER BY event_time DESC LIMIT 1) as last_pump_action
                 FROM wells w
                 LEFT JOIN pumps p ON w.pump_id = p.id
-                ORDER BY w.well_number
+                ORDER BY CAST(w.well_number AS INTEGER) ASC, w.well_number ASC
             ''').fetchall()
         else:
             # دریافت فقط اطلاعات چاه‌ها
             wells = conn.execute('''
                 SELECT * FROM wells 
-                ORDER BY well_number
+                ORDER BY CAST(well_number AS INTEGER) ASC, well_number ASC
             ''').fetchall()
         
         return wells
@@ -121,101 +125,113 @@ def get_well_by_well_number(well_number):
     finally:
         conn.close()
 
-def update_well(well_id, well_data):
+def record_well_event(event_data):
     """
-    بروزرسانی اطلاعات چاه
+    Records a single event for a well, which can be a maintenance operation,
+    a data update, or both. This is the new single source of truth for well history.
     """
     conn = get_db_connection()
-    
     try:
-        # فیلدهای قابل بروزرسانی
-        update_fields = {
-            'name': well_data.get('name'),
-            'location': well_data.get('location'),
-            'total_depth': well_data.get('total_depth'),
-            'pump_installation_depth': well_data.get('pump_installation_depth'),
-            'well_diameter': well_data.get('well_diameter'),
-            'casing_type': well_data.get('casing_type'),
-            'current_pump_brand': well_data.get('current_pump_brand'),
-            'current_pump_model': well_data.get('current_pump_model'),
-            'current_pump_power': well_data.get('current_pump_power'),
-            'current_pump_phase': well_data.get('current_pump_phase'),
-               'current_cable_specs': well_data.get('current_cable_specs'),
-               'current_pipe_material': well_data.get('current_pipe_material'),
-               'current_pipe_specs': well_data.get('current_pipe_specs'),
-               'current_pipe_diameter': well_data.get('current_pipe_diameter'),
-               'current_pipe_length_m': well_data.get('current_pipe_length_m'),
-               'main_cable_specs': well_data.get('main_cable_specs'),
-               'well_cable_specs': well_data.get('well_cable_specs'),
-               'current_panel_specs': well_data.get('current_panel_specs'),
-            'well_installation_date': well_data.get('well_installation_date'),
-            'current_equipment_installation_date': well_data.get('current_equipment_installation_date'),
-            'status': well_data.get('status', 'active'),
-            'notes': well_data.get('notes'),
-            'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        }
-        
-        # ساخت query داینامیک
-        set_clause = ', '.join([f"{key} = ?" for key in update_fields.keys()])
-        values = list(update_fields.values())
-        values.append(well_id)
-        
-        query = f"UPDATE wells SET {set_clause} WHERE id = ?"
-        
-        conn.execute(query, values)
-        conn.commit()
-        
-        return {'success': True, 'message': 'اطلاعات چاه با موفقیت بروزرسانی شد'}
-        
-    except Exception as e:
-        conn.rollback()
-        return {'success': False, 'error': f'خطا در بروزرسانی چاه: {str(e)}'}
-    finally:
-        conn.close()
+        # --- 1. Validation ---
+        well_id = event_data.get('well_id')
+        user_id = event_data.get('recorded_by_user_id')
+        operation_type = event_data.get('operation_type')
+        operation_date = event_data.get('operation_date')
 
-def create_maintenance_operation(operation_data):
-    """
-    ثبت عملیات تعمیر و نگهداری برای چاه
-    """
-    conn = get_db_connection()
-    
-    try:
-        # اعتبارسنجی داده‌های ورودی
-        required_fields = ['well_id', 'recorded_by_user_id', 'operation_type', 'operation_date', 'description']
-        for field in required_fields:
-            if not operation_data.get(field):
-                return {'success': False, 'error': f'فیلد {field} الزامی است'}
+        if not all([well_id, user_id, operation_type, operation_date]):
+            return {'success': False, 'error': 'اطلاعات ضروری (شناسه چاه، کاربر، نوع و تاریخ عملیات) ناقص است.'}
+
+        # Check user permissions
+        user = conn.execute('SELECT role FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user or user['role'] not in ALLOWED_MAINTENANCE_ROLES:
+            return {'success': False, 'error': 'شما مجوز ثبت رویداد برای چاه را ندارید.'}
+
+        conn.execute('BEGIN')
+
+        # --- 2. Process Well Updates ---
+        old_well = conn.execute('SELECT * FROM wells WHERE id = ?', (well_id,)).fetchone()
+        if not old_well:
+            conn.execute('ROLLBACK')
+            return {'success': False, 'error': 'چاه مورد نظر یافت نشد.'}
+
+        well_updates = event_data.get('well_updates', {})
+        changed_fields = []
+        changed_values = {}
+        updates_to_apply = {}
+
+        allowed_fields = [
+            'name', 'location', 'total_depth', 'pump_installation_depth', 'well_diameter',
+            'current_pump_brand', 'current_pump_model', 'current_pump_power',
+            'current_pipe_material', 'current_pipe_diameter', 'current_pipe_length_m',
+            'main_cable_specs', 'well_cable_specs', 'current_panel_specs', 'status'
+        ]
+
+
+        for key in allowed_fields:
+            if key in well_updates:
+                old_val = old_well[key]
+                new_val = well_updates[key]
+                # Compare values, treating None and empty strings as potentially different
+                if str(old_val or '') != str(new_val or ''):
+                    changed_fields.append(key)
+                    changed_values[key] = {'old': old_val, 'new': new_val}
+                    updates_to_apply[key] = new_val
         
-        # ثبت عملیات تعمیرات
-        conn.execute('''
-            INSERT INTO maintenance_operations (
-                well_id, recorded_by_user_id, operation_type, operation_date,
-                operation_time, description, parts_used, duration_minutes,
-                performed_by, status, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            operation_data['well_id'],
-            operation_data['recorded_by_user_id'],
-            operation_data['operation_type'],
-            operation_data['operation_date'],
-            operation_data.get('operation_time'),
-            operation_data['description'],
-            operation_data.get('parts_used', ''),
-            operation_data.get('duration_minutes'),
-            operation_data.get('performed_by', ''),
-            operation_data.get('status', 'completed'),
-            operation_data.get('notes', '')
-        ))
-        
-        conn.commit()
-        
-        return {'success': True, 'message': 'عملیات تعمیرات با موفقیت ثبت شد'}
-        
+        if updates_to_apply:
+            updates_to_apply['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            set_clause = ', '.join([f"{k} = ?" for k in updates_to_apply])
+            values = list(updates_to_apply.values())
+            values.append(well_id)
+            conn.execute(f'UPDATE wells SET {set_clause} WHERE id = ?', values)
+
+        # --- 3. Record the Event in wells_history ---
+        new_well = conn.execute('SELECT * FROM wells WHERE id = ?', (well_id,)).fetchone()
+        full_snapshot = json.dumps(dict(new_well), ensure_ascii=False) if new_well else '{}'
+
+        history_params = {
+            'well_id': well_id,
+            'changed_by_user_id': user_id,
+            'operation_type': operation_type,
+            'operation_date': operation_date,
+            'performed_by': event_data.get('performed_by'),
+            'changed_fields': json.dumps(changed_fields, ensure_ascii=False),
+            'changed_values': json.dumps(changed_values, ensure_ascii=False) if changed_values else None,
+            'full_snapshot': full_snapshot,
+            'recorded_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'reason': event_data.get('notes') # Using notes field as the reason/description
+        }
+
+        # The 'change_type' column can be repurposed or be the same as operation_type
+        history_params['change_type'] = operation_type
+
+        sql = """
+            INSERT INTO wells_history (
+                well_id, changed_by_user_id, operation_type, operation_date, performed_by,
+                change_type, changed_fields, changed_values, full_snapshot, recorded_time, reason
+            ) VALUES (
+                :well_id, :changed_by_user_id, :operation_type, :operation_date, :performed_by,
+                :change_type, :changed_fields, :changed_values, :full_snapshot, :recorded_time, :reason
+            )
+        """
+        cursor = conn.execute(sql, history_params)
+        history_id = cursor.lastrowid
+
+        conn.execute('COMMIT')
+
+        return {
+            'success': True, 
+            'message': 'عملیات با موفقیت در تاریخچه چاه ثبت شد.', 
+            'history_id': history_id
+        }
+
     except Exception as e:
-        conn.rollback()
-        return {'success': False, 'error': f'خطا در ثبت عملیات تعمیرات: {str(e)}'}
+        if conn:
+            conn.execute('ROLLBACK')
+        return {'success': False, 'error': f'خطا در ثبت رویداد چاه: {str(e)}'}
     finally:
-        conn.close()
+        if conn:
+            conn.close()
+
 
 def get_well_maintenance_operations(well_id, limit=50):
     """
@@ -226,15 +242,12 @@ def get_well_maintenance_operations(well_id, limit=50):
     try:
         operations = conn.execute('''
             SELECT 
-                mo.*,
-                u.full_name as recorded_by_name,
-                w.well_number,
-                w.name as well_name
-            FROM maintenance_operations mo
-            JOIN wells w ON mo.well_id = w.id
-            JOIN users u ON mo.recorded_by_user_id = u.id
-            WHERE mo.well_id = ?
-            ORDER BY mo.operation_date DESC, mo.id DESC
+                wh.*,
+                u.full_name as changed_by_user_name
+            FROM wells_history wh
+            JOIN users u ON wh.changed_by_user_id = u.id
+            WHERE wh.well_id = ?
+            ORDER BY wh.operation_date DESC, wh.id DESC
             LIMIT ?
         ''', (well_id, limit)).fetchall()
         
@@ -255,14 +268,14 @@ def get_all_maintenance_operations(limit=100):
     try:
         operations = conn.execute('''
             SELECT 
-                mo.*,
-                u.full_name as recorded_by_name,
+                wh.*,
+                u.full_name as changed_by_user_name,
                 w.well_number,
                 w.name as well_name
-            FROM maintenance_operations mo
-            JOIN wells w ON mo.well_id = w.id
-            JOIN users u ON mo.recorded_by_user_id = u.id
-            ORDER BY mo.operation_date DESC, mo.id DESC
+            FROM wells_history wh
+            JOIN users u ON wh.changed_by_user_id = u.id
+            JOIN wells w ON wh.well_id = w.id
+            ORDER BY wh.operation_date DESC, wh.id DESC
             LIMIT ?
         ''', (limit,)).fetchall()
         
@@ -283,14 +296,14 @@ def get_well_statistics(well_id):
     try:
         # تعداد عملیات تعمیرات
         maintenance_count = conn.execute(
-            'SELECT COUNT(*) FROM maintenance_operations WHERE well_id = ?',
+            'SELECT COUNT(*) FROM wells_history WHERE well_id = ?',
             (well_id,)
         ).fetchone()[0]
         
-        # آخرین عملیات تعمیرات
+        # آخرین عملیات تعمیرات (از wells_history)
         last_maintenance = conn.execute('''
-            SELECT operation_type, operation_date, description 
-            FROM maintenance_operations 
+            SELECT operation_type, operation_date
+            FROM wells_history 
             WHERE well_id = ? 
             ORDER BY operation_date DESC 
             LIMIT 1
@@ -346,5 +359,20 @@ def search_wells(search_term):
     except Exception as e:
         print(f"Error in search_wells: {e}")
         return []
+    finally:
+        conn.close()
+
+
+def get_history_by_id(history_id):
+    """
+    Fetch a single wells_history row by id and return as dict (or None).
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute('SELECT * FROM wells_history WHERE id = ?', (history_id,)).fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        print(f"Error in get_history_by_id: {e}")
+        return None
     finally:
         conn.close()
