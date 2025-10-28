@@ -361,3 +361,18 @@ def search_wells(search_term):
         return []
     finally:
         conn.close()
+
+
+def get_history_by_id(history_id):
+    """
+    Fetch a single wells_history row by id and return as dict (or None).
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute('SELECT * FROM wells_history WHERE id = ?', (history_id,)).fetchone()
+        return dict(row) if row else None
+    except Exception as e:
+        print(f"Error in get_history_by_id: {e}")
+        return None
+    finally:
+        conn.close()
