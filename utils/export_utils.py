@@ -1,10 +1,11 @@
 import pandas as pd
 import io
-from flask import send_file
+import json
+from flask import send_file, flash, redirect
 from database.reports import get_operating_hours_report, get_status_at_time_report, get_full_history_report
 from openpyxl.utils import get_column_letter
-from openpyxl.styles import Font, Alignment
-from database.wells_operations import get_all_wells
+from openpyxl.styles import Font, Alignment, PatternFill
+from database.wells_operations import get_all_wells, get_well_maintenance_operations, get_well_by_id
 from utils.date_utils import gregorian_to_jalali
 
 def export_operating_hours_to_excel(date_jalali, month_jalali, report_type):
@@ -199,6 +200,157 @@ def export_wells_to_excel():
     filename = f'wells_list_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
 
     output = create_excel_with_title(df, period_title, 'چاه‌ها')
+    output.seek(0)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+
+def export_well_history_to_excel(well_id):
+    """Export maintenance/history for a single well to Excel.
+    Columns: History ID, Well Number, Well Name, Operation Type, Operation Date (Jalali), Performed By,
+    [well fields...], Notes. Cells corresponding to changed fields are highlighted.
+    """
+    operations = get_well_maintenance_operations(well_id, limit=10000)
+
+    if not operations:
+        flash('هیچ سابقه‌ای برای این چاه موجود نیست', 'warning')
+        return redirect(f'/wells/{well_id}/maintenance')
+
+    # Define the well fields to include (in this order)
+    well_fields = [
+        ('total_depth', 'عمق کل'),
+        ('pump_installation_depth', 'عمق نصب پمپ'),
+        ('well_diameter', 'قطر چاه'),
+        ('current_pump_brand', 'برند پمپ'),
+        ('current_pump_model', 'مدل پمپ'),
+        ('current_pump_power', 'قدرت پمپ'),
+        ('current_pipe_material', 'جنس لوله'),
+        ('current_pipe_diameter', 'قطر لوله'),
+        ('current_pipe_length_m', 'متراژ لوله (متر)'),
+        ('main_cable_specs', 'کابل اصلی'),
+        ('well_cable_specs', 'کابل چاه'),
+        ('current_panel_specs', 'مشخصات تابلو'),
+        ('status', 'وضعیت')
+    ]
+
+    data = []
+    changed_lists = []  # parallel list of changed_fields per row
+
+    # try to get well basic info
+    well = get_well_by_id(well_id, include_pump_info=False)
+    well_number = well['well_number'] if well else ''
+    well_name = well['name'] if well else ''
+
+    for op in operations:
+        op_dict = dict(op)
+        # parse full_snapshot if present
+        snapshot = {}
+        try:
+            if op_dict.get('full_snapshot'):
+                snapshot = json.loads(op_dict.get('full_snapshot'))
+        except Exception:
+            snapshot = {}
+
+        # operation date jalali
+        op_date = op_dict.get('operation_date')
+        if op_date:
+            try:
+                jal = gregorian_to_jalali(str(op_date))
+                jal_date = jal.split(' ')[0]
+            except Exception:
+                jal_date = op_date
+        else:
+            jal_date = ''
+
+        changed = []
+        try:
+            changed = json.loads(op_dict.get('changed_fields') or '[]')
+        except Exception:
+            changed = []
+
+        changed_lists.append(changed)
+
+        row = {
+            'History ID': op_dict.get('id'),
+            'شماره چاه': well_number,
+            'نوع عملیات': op_dict.get('operation_type'),
+            'تاریخ عملیات': jal_date,
+            'انجام دهنده': op_dict.get('performed_by') or ''
+        }
+
+        # include well fields from snapshot
+        for key, label in well_fields:
+            val = snapshot.get(key) if isinstance(snapshot, dict) else ''
+            row[label] = val if val is not None else ''
+
+        # notes / reason
+        row['یادداشت'] = op_dict.get('reason') or ''
+
+        data.append(row)
+
+    df = pd.DataFrame(data)
+
+    # filename
+    filename = f'well_{well_number}_history_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+
+    output = io.BytesIO()
+    highlight_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        sheet_name = 'تاریخچه تعمیرات'
+        df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+        workbook = writer.book
+        worksheet = writer.sheets[sheet_name]
+
+        # Insert title row
+        worksheet.insert_rows(1)
+        worksheet['A1'] = f"تاریخچه تعمیرات چاه {well_number} - {well_name}"
+        last_col = get_column_letter(df.shape[1]) if df.shape[1] >= 1 else 'A'
+        worksheet.merge_cells(f'A1:{last_col}1')
+        worksheet['A1'].font = Font(size=14, bold=True)
+        worksheet['A1'].alignment = Alignment(horizontal='center', vertical='center')
+
+        # auto-size
+        for idx, col in enumerate(df.columns, start=1):
+            col_letter = get_column_letter(idx)
+            try:
+                max_length = max(df[col].astype(str).map(len).max(), len(str(col)))
+            except Exception:
+                max_length = len(str(col))
+            worksheet.column_dimensions[col_letter].width = (max_length or 0) + 2
+
+        # Apply highlights for changed fields
+        # header row is now at row 2, data starts at row 3
+        header_to_col = {str(df.columns[i]): i + 1 for i in range(len(df.columns))}
+
+        for row_idx, changed in enumerate(changed_lists, start=0):
+            excel_row = row_idx + 3
+            for field_key in changed:
+                # map field_key to Persian header if present
+                # find matching header label from well_fields
+                label = None
+                for k, lab in well_fields:
+                    if k == field_key:
+                        label = lab
+                        break
+                # also handle notes and other direct fields
+                if field_key == 'notes' or field_key == 'reason':
+                    label = 'یادداشت'
+
+                if label and label in header_to_col:
+                    col_idx = header_to_col[label]
+                    try:
+                        cell = worksheet.cell(row=excel_row, column=col_idx)
+                        cell.fill = highlight_fill
+                    except Exception:
+                        pass
+
     output.seek(0)
 
     return send_file(

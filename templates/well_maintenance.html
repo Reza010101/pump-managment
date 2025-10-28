@@ -169,6 +169,11 @@
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">📋 تاریخچه عملیات تعمیرات</h5>
+                        <div class="btn-group float-start">
+                            <a href="/wells/{{ well.id }}/export_history" class="btn btn-success btn-sm">
+                                <i class="bi bi-download"></i> دانلود اکسل
+                            </a>
+                        </div>
                     </div>
                     <div class="card-body">
                         {% if maintenance_operations %}

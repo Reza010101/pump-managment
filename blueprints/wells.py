@@ -8,7 +8,7 @@ from database.wells_operations import (
 from database.models import get_db_connection
 import json
 from utils.date_utils import gregorian_to_jalali
-from utils.export_utils import export_wells_to_excel
+from utils.export_utils import export_wells_to_excel, export_well_history_to_excel
 
 wells_bp = Blueprint('wells', __name__)
 
@@ -171,6 +171,16 @@ def wells_export():
 
     # Delegate to export utility which returns a Flask response
     return export_wells_to_excel()
+
+
+@wells_bp.route('/wells/<int:well_id>/export_history')
+def wells_export_history(well_id):
+    """Export maintenance history for a single well to Excel."""
+    if 'user_id' not in session:
+        flash('لطفا ابتدا وارد شوید', 'error')
+        return redirect('/login')
+
+    return export_well_history_to_excel(well_id)
 
 
 # API: get a single wells_history record by id (used by the maintenance details modal)
