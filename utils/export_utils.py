@@ -310,7 +310,7 @@ def export_well_history_to_excel(well_id):
 
         # Insert title row
         worksheet.insert_rows(1)
-        worksheet['A1'] = f"تاریخچه تعمیرات چاه {well_number} - {well_name}"
+        worksheet['A1'] = f"تاریخچه تعمیرات چاه {well_number}"
         last_col = get_column_letter(df.shape[1]) if df.shape[1] >= 1 else 'A'
         worksheet.merge_cells(f'A1:{last_col}1')
         worksheet['A1'].font = Font(size=14, bold=True)

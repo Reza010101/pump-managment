@@ -13,9 +13,6 @@
                     مدیریت تعمیرات - چاه {{ well.well_number }} - {{ well.name }}
                 </h4>
                 <div class="btn-group">
-                    <a href="/wells/{{ well.id }}/maintenance" class="btn btn-info btn-sm">
-                        <i class="bi bi-tools"></i> مشاهده در صفحه تعمیرات
-                    </a>
                     <a href="/wells" class="btn btn-secondary btn-sm">
                         <i class="bi bi-arrow-right"></i> لیست چاه‌ها
                     </a>
@@ -167,14 +164,14 @@
             <!-- تاریخچه تعمیرات (راست) -->
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">📋 تاریخچه عملیات تعمیرات</h5>
-                        <div class="btn-group float-start">
-                            <a href="/wells/{{ well.id }}/export_history" class="btn btn-success btn-sm">
-                                <i class="bi bi-download"></i> دانلود اکسل
-                            </a>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">📋 تاریخچه عملیات تعمیرات</h5>
+                            <div class="btn-group">
+                                <a href="/wells/{{ well.id }}/export_history" class="btn btn-success btn-sm">
+                                    <i class="bi bi-download"></i> دانلود اکسل
+                                </a>
+                            </div>
                         </div>
-                    </div>
                     <div class="card-body">
                         {% if maintenance_operations %}
                         <div class="table-responsive">
