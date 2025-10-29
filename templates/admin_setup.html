@@ -1,0 +1,37 @@
+{% extends 'base_dashboard.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>تنظیمات مدیریت — پشتیبان‌گیری و بازگردانی</h3>
+
+  <div class="card my-3">
+    <div class="card-body">
+      <form method="post" action="/admin/setup/backup">
+        <button type="submit" class="btn btn-primary">ایجاد بکاپ اکنون</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card my-3">
+    <div class="card-body">
+      <h5>بکاپ‌های موجود</h5>
+      {% if backups %}
+        <ul class="list-group">
+          {% for b in backups %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <code>{{ b }}</code>
+              <form method="post" action="/admin/setup/restore" style="margin:0;">
+                <input type="hidden" name="backup_file" value="{{ b }}" />
+                <button type="submit" name="confirm" value="true" class="btn btn-sm btn-danger">بازگردانی</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>هیچ بکاپی یافت نشد.</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
