@@ -11,31 +11,15 @@
           <button type="submit" class="btn btn-primary">ایجاد بکاپ اکنون</button>
         </form>
 
-        <!-- Trigger restore modal -->
-        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#restoreModal">
+        <!-- Trigger restore modal (handled by our JS) -->
+        <button id="openRestoreModalBtn" type="button" class="btn btn-outline-danger">
           بازگردانی بکاپ
         </button>
       </div>
     </div>
   </div>
 
-  <div class="card my-3">
-    <div class="card-body">
-      <h5>بکاپ‌های موجود</h5>
-      {% if backups %}
-        <ul class="list-group">
-          {% for b in backups %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <code>{{ b }}</code>
-              <small class="text-muted">{{ b.split('/')[-1] }}</small>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>هیچ بکاپی یافت نشد.</p>
-      {% endif %}
-    </div>
-  </div>
+  
 
 </div>
 {% endblock %}
@@ -55,14 +39,20 @@
           {% if backups %}
             <div class="list-group">
               {% for b in backups %}
-                <label class="list-group-item d-flex justify-content-between align-items-center">
-                  <input class="form-check-input me-2" type="radio" name="backup_file" value="{{ b }}">
-                  <div>
-                    <div><strong>{{ b.split('/')[-1] }}</strong></div>
-                    <div class="small text-muted">{{ b }}</div>
-                  </div>
-                </label>
-              {% endfor %}
+                    <label class="list-group-item">
+                      <div class="form-check d-flex align-items-start">
+                        <input class="form-check-input mt-1 me-2" type="radio" name="backup_file" value="{{ b }}">
+                        <div class="w-100">
+                          <div class="d-flex justify-content-between">
+                            <div class="fw-bold">{{ b.split('/')[-1] }}</div>
+                            {# show short relative path or keep small metadata area for future info #}
+                            <small class="text-muted">&nbsp;</small>
+                          </div>
+                          <div class="small text-muted text-truncate" style="max-width:60ch;" title="{{ b }}">{{ b }}</div>
+                        </div>
+                      </div>
+                    </label>
+                  {% endfor %}
             </div>
           {% else %}
             <p>هیچ بکاپی برای انتخاب موجود نیست.</p>
@@ -78,3 +68,137 @@
     </div>
   </div>
 </div>
+{# expose backups to JS so we can build the modal dynamically if needed #}
+{% block scripts %}
+<script>
+  var __admin_backups = {{ backups|default([]) | tojson | safe }};
+document.addEventListener('DOMContentLoaded', function(){
+  try{
+    var btn = document.getElementById('openRestoreModalBtn');
+    if(!btn) return;
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      var modalEl = document.getElementById('restoreModal');
+      if(!modalEl){
+        // If the modal markup didn't render for some reason, build it dynamically
+        // using the server-provided backups array exposed as __admin_backups.
+        function escapeHtml(str){
+          return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+        function createRestoreModal(backups){
+          var container = document.createElement('div');
+          var radios = '';
+          if(backups && backups.length){
+            function parseTsFromFilename(fn){
+              var m = fn.match(/(\d{14})/);
+              if(!m) return null;
+              var s = m[1];
+              var yyyy = s.substr(0,4), mm = s.substr(4,2), dd = s.substr(6,2), hh = s.substr(8,2), mi = s.substr(10,2), ss = s.substr(12,2);
+              return yyyy + '-' + mm + '-' + dd + ' ' + hh + ':' + mi + ':' + ss;
+            }
+            for(var i=0;i<backups.length;i++){
+              var b = backups[i];
+              var fname = b.split('/').slice(-1)[0];
+              var readable = parseTsFromFilename(fname);
+              radios += '<label class="list-group-item">'
+                     + '<div class="form-check d-flex align-items-start">'
+                     + '<input class="form-check-input mt-1 me-2" type="radio" name="backup_file" value="'+ escapeHtml(b) +'">'
+                     + '<div class="w-100">'
+                     + '<div class="d-flex justify-content-between">'
+                     + '<div class="fw-bold">'+ escapeHtml(fname) +'</div>'
+                     + '<small class="text-muted">'+ (readable? escapeHtml(readable) : '&nbsp;') +'</small>'
+                     + '</div>'
+                     + '<div class="small text-muted text-truncate" style="max-width:60ch;" title="'+ escapeHtml(b) +'">'+ escapeHtml(b) +'</div>'
+                     + '</div></div></label>';
+            }
+          } else {
+            radios = '<p>هیچ بکاپی برای انتخاب موجود نیست.</p>';
+          }
+
+          container.innerHTML = '\n<div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalLabel" aria-hidden="true">'
+            + '<div class="modal-dialog modal-lg">'
+            + '<div class="modal-content">'
+            + '<div class="modal-header">'
+            + '<h5 class="modal-title" id="restoreModalLabel">بازگردانی بکاپ</h5>'
+            + '<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>'
+            + '</div>'
+            + '<form method="post" action="/admin/setup/restore">'
+            + '<div class="modal-body">'
+            + '<p class="text-warning">توجه: بازگردانی، پایگاه‌داده فعلی را بازنویسی خواهد کرد. قبل از ادامه یک بکاپ اضطراری گرفته می‌شود.</p>'
+            + '<div class="list-group">' + radios + '</div>'
+            + '</div>'
+            + '<div class="modal-footer">'
+            + '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>'
+            + '<input type="hidden" name="confirm" value="true" />'
+            + '<button type="submit" class="btn btn-danger">تایید و بازگردانی</button>'
+            + '</div>'
+            + '</form></div></div></div>';
+
+          return container.firstElementChild;
+        }
+
+        modalEl = createRestoreModal(Array.isArray(__admin_backups)?__admin_backups:[]);
+        if(modalEl){
+          document.body.appendChild(modalEl);
+        } else {
+          console.error('Failed to create restore modal dynamically');
+          return;
+        }
+      }
+      // Use Bootstrap's JS API to create/show the modal with explicit options
+      if(typeof bootstrap !== 'undefined' && bootstrap && typeof bootstrap.Modal === 'function'){
+        // Try Bootstrap Modal API first. Wrap in try/catch because some
+        // runtime environments (or duplicate bootstrap loads) can throw
+        // from inside the constructor.
+        try{
+          var m = new bootstrap.Modal(modalEl);
+          m.show();
+          return;
+        }catch(err){
+          console.error('bootstrap.Modal failed, falling back to manual modal show', err);
+        }
+      } else {
+        console.warn('Bootstrap Modal API not available, using fallback modal');
+      }
+
+      // Fallback: lightweight manual modal/show that doesn't rely on
+      // bootstrap internals (creates backdrop, shows dialog, wires close).
+      (function showModalFallback(modal){
+        // create backdrop
+        var backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        document.body.appendChild(backdrop);
+
+        // show modal element
+        modal.style.display = 'block';
+        modal.classList.add('show');
+        document.body.classList.add('modal-open');
+
+        // wire up close buttons inside modal to hide fallback
+        var hide = function(ev){
+          ev && ev.preventDefault();
+          modal.classList.remove('show');
+          modal.style.display = 'none';
+          if(backdrop && backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+          document.body.classList.remove('modal-open');
+        };
+
+        // close buttons (data-bs-dismiss)
+        var closes = modal.querySelectorAll('[data-bs-dismiss="modal"]');
+        closes.forEach(function(c){ c.addEventListener('click', hide); });
+
+        // also close when clicking backdrop
+        backdrop.addEventListener('click', hide);
+
+        // ensure ESC key closes it
+        var escHandler = function(e){ if(e.key === 'Escape'){ hide(e); document.removeEventListener('keydown', escHandler); } };
+        document.addEventListener('keydown', escHandler);
+
+      })(modalEl);
+    });
+  }catch(err){
+    console.error('restore modal init error', err);
+  }
+});
+</script>
+{% endblock %}
