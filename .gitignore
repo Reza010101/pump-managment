@@ -19,6 +19,9 @@ instance/
 *.sqlite3
 *.sqlite
 pump_management.db
+# Database backups folder (do not track backup files)
+database_backups/
+*.db.bak*
 
 # IDE
 .vscode/
