@@ -6,9 +6,16 @@
 
   <div class="card my-3">
     <div class="card-body">
-      <form method="post" action="/admin/setup/backup">
-        <button type="submit" class="btn btn-primary">ایجاد بکاپ اکنون</button>
-      </form>
+      <div class="d-flex gap-2">
+        <form method="post" action="/admin/setup/backup" style="margin:0;">
+          <button type="submit" class="btn btn-primary">ایجاد بکاپ اکنون</button>
+        </form>
+
+        <!-- Trigger restore modal -->
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#restoreModal">
+          بازگردانی بکاپ
+        </button>
+      </div>
     </div>
   </div>
 
@@ -20,10 +27,7 @@
           {% for b in backups %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
               <code>{{ b }}</code>
-              <form method="post" action="/admin/setup/restore" style="margin:0;">
-                <input type="hidden" name="backup_file" value="{{ b }}" />
-                <button type="submit" name="confirm" value="true" class="btn btn-sm btn-danger">بازگردانی</button>
-              </form>
+              <small class="text-muted">{{ b.split('/')[-1] }}</small>
             </li>
           {% endfor %}
         </ul>
@@ -35,3 +39,42 @@
 
 </div>
 {% endblock %}
+
+<!-- Restore modal -->
+<div class="modal fade" id="restoreModal" tabindex="-1" aria-labelledby="restoreModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="restoreModalLabel">بازگردانی بکاپ</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="/admin/setup/restore">
+        <div class="modal-body">
+          <p class="text-warning">توجه: بازگردانی، پایگاه‌داده فعلی را بازنویسی خواهد کرد. قبل از ادامه یک بکاپ اضطراری گرفته می‌شود.</p>
+
+          {% if backups %}
+            <div class="list-group">
+              {% for b in backups %}
+                <label class="list-group-item d-flex justify-content-between align-items-center">
+                  <input class="form-check-input me-2" type="radio" name="backup_file" value="{{ b }}">
+                  <div>
+                    <div><strong>{{ b.split('/')[-1] }}</strong></div>
+                    <div class="small text-muted">{{ b }}</div>
+                  </div>
+                </label>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p>هیچ بکاپی برای انتخاب موجود نیست.</p>
+          {% endif %}
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">انصراف</button>
+          <input type="hidden" name="confirm" value="true" />
+          <button type="submit" class="btn btn-danger">تایید و بازگردانی</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
