@@ -13,6 +13,19 @@ from utils import import_utils as iu
 import create_database as cd
 from database.wells_operations import get_all_wells
 
+# Safety guard: these integration tests intentionally clear or remove
+# `pump_management.db` to get a clean slate. To avoid accidental data loss
+# when running tests in a workspace with a real DB, require an explicit
+# environment variable `ALLOW_TEST_DB_RESET=1` to allow the cleanup to run.
+# This prevents `py -m unittest discover` from wiping a production DB by
+# mistake.
+import os
+if os.path.exists('pump_management.db') and os.environ.get('ALLOW_TEST_DB_RESET') != '1':
+    raise RuntimeError(
+        "Integration tests would reset 'pump_management.db'. "
+        "Set environment variable ALLOW_TEST_DB_RESET=1 to confirm or run tests against a copy."
+    )
+
 class WellsImportIntegrationTest(unittest.TestCase):
     SAMPLE_PATH = Path('tests/sample_for_test.xlsx')
 

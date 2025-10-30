@@ -131,8 +131,10 @@ def admin_setup_restore():
         flash('لطفاً بازگردانی را تأیید کنید.', 'warning')
         return redirect('/admin/setup')
     try:
-        emergency = create_backup()
-        restore_backup(backup_file)
+        # restore_backup() already creates an emergency backup internally,
+        # so call it directly and use its returned emergency path. This avoids
+        # creating two backups for a single restore operation.
+        emergency = restore_backup(backup_file)
         flash(f'Restored from {backup_file}. Emergency backup created: {emergency}', 'success')
     except Exception as e:
         flash(f'Error restoring backup: {str(e)}', 'error')
