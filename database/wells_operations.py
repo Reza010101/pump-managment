@@ -204,16 +204,26 @@ def record_well_event(event_data):
         # The 'change_type' column can be repurposed or be the same as operation_type
         history_params['change_type'] = operation_type
 
-        sql = """
-            INSERT INTO wells_history (
-                well_id, changed_by_user_id, operation_type, operation_date, performed_by,
-                change_type, changed_fields, changed_values, full_snapshot, recorded_time, reason
-            ) VALUES (
-                :well_id, :changed_by_user_id, :operation_type, :operation_date, :performed_by,
-                :change_type, :changed_fields, :changed_values, :full_snapshot, :recorded_time, :reason
-            )
-        """
-        cursor = conn.execute(sql, history_params)
+        # Insert adaptively based on existing columns in wells_history (to support older DBs)
+        cols_info = conn.execute("PRAGMA table_info(wells_history)").fetchall()
+        existing_cols = [c['name'] for c in cols_info]
+
+        desired_cols = [
+            'well_id', 'changed_by_user_id', 'operation_type', 'operation_date', 'performed_by',
+            'change_type', 'changed_fields', 'changed_values', 'full_snapshot', 'recorded_time', 'reason'
+        ]
+
+        insert_cols = [c for c in desired_cols if c in existing_cols]
+        if not insert_cols:
+            # fallback: try minimal insert
+            insert_cols = ['well_id', 'changed_by_user_id', 'change_type', 'full_snapshot', 'recorded_time']
+
+        placeholders = ', '.join([f":{c}" for c in insert_cols])
+        cols_sql = ', '.join(insert_cols)
+        sql = f"INSERT INTO wells_history ({cols_sql}) VALUES ({placeholders})"
+        # build params subset
+        params_subset = {k: history_params.get(k) for k in insert_cols}
+        cursor = conn.execute(sql, params_subset)
         history_id = cursor.lastrowid
 
         conn.execute('COMMIT')

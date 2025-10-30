@@ -19,6 +19,20 @@
     </div>
   </div>
 
+  <div class="card my-3">
+    <div class="card-body">
+      <h5>ایمپورت چاه‌ها / پمپ‌ها از اکسل</h5>
+      <p>می‌توانید قالب را دانلود کرده، پر کنید و سپس آپلود و پیش‌نمایش کنید. حداکثر 1000 چاه مجاز است. حالت پیش‌فرض Merge است (داده‌های اکسل برتری دارند).</p>
+      <div class="d-flex gap-2">
+        <a href="/admin/setup/download-template" class="btn btn-outline-secondary">دانلود قالب اکسل</a>
+        <form method="post" action="/admin/setup/upload-preview" enctype="multipart/form-data" style="margin:0;">
+          <input type="file" name="wells_file" accept=".xlsx" required>
+          <button type="submit" class="btn btn-primary">آپلود و پیش‌نمایش</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   
 
 </div>

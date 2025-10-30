@@ -80,6 +80,7 @@ def create_tables(cursor):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             well_number INTEGER UNIQUE NOT NULL,
             name TEXT NOT NULL,
+            pump_id INTEGER,
             location TEXT,
             total_depth TEXT,
             pump_installation_depth TEXT,
@@ -108,6 +109,9 @@ def create_tables(cursor):
             well_id INTEGER NOT NULL,
             changed_by_user_id INTEGER NOT NULL,
             change_type TEXT NOT NULL,
+            operation_type TEXT,
+            operation_date DATETIME,
+            performed_by TEXT,
             changed_fields TEXT,
             changed_values TEXT,
             full_snapshot TEXT,
@@ -125,27 +129,21 @@ def insert_sample_data(cursor):
     """درج داده‌های نمونه"""
     
     # کاربران پیشفرض
-    cursor.executemany('''
-        INSERT INTO users (username, password, full_name, role) 
-        VALUES (?, ?, ?, ?)
-    ''', [
+    # insert default users idempotently
+    users = [
         ('admin', '1234', 'مدیر سیستم', 'admin'),
         ('user1', '1234', 'کاربر نمونه', 'user')
-    ])
+    ]
+    for u in users:
+        cursor.execute('''
+            INSERT OR IGNORE INTO users (username, password, full_name, role) 
+            VALUES (?, ?, ?, ?)
+        ''', u)
     print("✅ کاربران پیشفرض اضافه شدند")
-    
-    # پمپ‌ها
-    pumps_data = []
-    for i in range(1, 59):
-        pumps_data.append((
-            i, i, f'پمپ شماره {i}', f'سالن {((i-1)//10)+1}'
-        ))
-    
-    cursor.executemany('''
-        INSERT INTO pumps (id, pump_number, name, location) 
-        VALUES (?, ?, ?, ?)
-    ''', pumps_data)
-    print("✅ ۵۸ پمپ اضافه شدند")
+    # NOTE: Previously this script auto-inserted 58 sample pumps for development.
+    # Per project decision, we no longer auto-seed pumps here. Use the
+    # admin setup page or the Excel import flow to create wells/pumps.
+    print("ℹ️ پمپ‌ها به صورت خودکار درج نشدند (برای ورود پمپ‌ها از صفحه تنظیمات یا واردسازی اکسل استفاده کنید)")
 
 def main():
     """تابع اصلی ایجاد دیتابیس"""
