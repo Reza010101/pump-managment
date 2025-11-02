@@ -6,24 +6,33 @@
 <style>
     .pump-card {
         transition: all 0.3s ease;
+        position: relative; /* برای استفاده از stretched-link */
+        cursor: pointer;
         border: 2px solid transparent;
     }
     .pump-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 5px 20px rgba(0,0,0,0.15);
     }
-    .pump-on {
+    /* stronger selectors to override Bootstrap card defaults */
+    .card.pump-on {
         border-color: #28a745 !important;
-        background: linear-gradient(135deg, #f8fff9 0%, #e8f5e9 100%);
+        background: linear-gradient(135deg, #f0fff4 0%, #dff6e6 100%) !important;
+        color: #0b3b1a !important;
     }
-    .pump-off {
+    .card.pump-off {
         border-color: #dc3545 !important;
-        background: linear-gradient(135deg, #fff8f8 0%, #ffeaea 100%);
+        background: linear-gradient(135deg, #fff5f6 0%, #ffdeda 100%) !important;
+        color: #4a0b0b !important;
     }
-    .pump-unknown {
+    .card.pump-unknown {
         border-color: #6c757d !important;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        color: #343a40 !important;
     }
+    /* ensure interactive controls sit above the stretched-link */
+    .btn-action-wrap { position: relative; z-index: 3; display: inline-block; }
+    .btn-action { position: relative; z-index: 4; }
     .status-badge {
         font-size: 0.8rem;
         padding: 0.4rem 0.8rem;
@@ -36,16 +45,28 @@
         opacity: 0.5;
         cursor: not-allowed;
     }
-    .pump-inactive {
+    .card.pump-inactive {
         border-color: #6c757d !important;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        opacity: 0.7;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        color: #6c757d !important;
+        opacity: 1 !important;
     }
 
-    .pump-maintenance {
-        border-color: #ffc107 !important;
-        background: linear-gradient(135deg, #fff9e6 0%, #ffeaa7 100%);
+    .card.pump-maintenance {
+        /* maintenance should display as neutral/gray similar to inactive */
+        border-color: #6c757d !important;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+        color: #6c757d !important;
     }
+
+    /* make badge colors consistent: treat warning as neutral gray for maintenance */
+    .status-badge.bg-warning {
+        background-color: #6c757d !important;
+        color: #fff !important;
+    }
+    /* ensure success/danger badges are visible on custom backgrounds */
+    .status-badge.bg-success { background-color: #28a745 !important; color: #fff !important; }
+    .status-badge.bg-danger { background-color: #dc3545 !important; color: #fff !important; }
 </style>
 {% endblock %}
 
@@ -71,16 +92,33 @@
     <div class="row" id="pumps-container">
         {% for pump in pumps %}
         <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
-            <div class="card pump-card 
-                {% if pump.well_status == 'active' %}
-                    {{ 'pump-on' if pump.status and pump.has_history > 0 else 'pump-off' if not pump.status and pump.has_history > 0 else 'pump-unknown' }}
-                {% elif pump.well_status == 'inactive' %}
-                    pump-inactive
-                {% elif pump.well_status == 'maintenance' %}
-                    pump-maintenance
-                {% else %}
-                    pump-unknown
-                {% endif %} h-100">
+            <div class="card pump-card " data-pump-id="{{ pump.id }}"
+                    {% if pump.well_status == 'active' %}
+                        {{ 'pump-on' if pump.status and pump.has_history > 0 else 'pump-off' if not pump.status and pump.has_history > 0 else 'pump-unknown' }}
+                    {% elif pump.well_status == 'inactive' %}
+                        pump-inactive
+                    {% elif pump.well_status == 'maintenance' %}
+                        pump-maintenance
+                    {% else %}
+                        pump-unknown
+                    {% endif %} h-100"
+                    style="
+                        {% if pump.well_status == 'active' %}
+                            {% if pump.status and pump.has_history > 0 %}
+                                background: linear-gradient(135deg,#f0fff4 0%,#dff6e6 100%); border-color:#28a745; color:#0b3b1a;
+                            {% elif not pump.status and pump.has_history > 0 %}
+                                background: linear-gradient(135deg,#fff5f6 0%,#ffdeda 100%); border-color:#dc3545; color:#4a0b0b;
+                            {% else %}
+                                background: linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%); border-color:#6c757d; color:#343a40;
+                            {% endif %}
+                        {% elif pump.well_status == 'inactive' %}
+                            background: linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%); border-color:#6c757d; color:#6c757d;
+                        {% elif pump.well_status == 'maintenance' %}
+                            background: linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%); border-color:#6c757d; color:#6c757d;
+                        {% else %}
+                            background: linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%); border-color:#6c757d; color:#343a40;
+                        {% endif %}
+                    ">
                 
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0">
@@ -136,20 +174,24 @@
                     <!-- دکمه‌های تغییر وضعیت - فقط برای چاه‌های فعال -->
                     {% if pump.well_status == 'active' %}
                     <div class="btn-group w-100" role="group">
-                        <button 
-                            class="btn btn-success btn-action btn-sm {{ 'disabled' if pump.status and pump.has_history > 0 }}"
-                            onclick="changePumpStatus({{ pump.id }}, 'on')"
-                            {{ 'disabled' if pump.status and pump.has_history > 0 }}>
-                            <i class="bi bi-power"></i>
-                            روشن
-                        </button>
-                        <button 
-                            class="btn btn-danger btn-action btn-sm {{ 'disabled' if not pump.status and pump.has_history > 0 }}"
-                            onclick="changePumpStatus({{ pump.id }}, 'off')"
-                            {{ 'disabled' if not pump.status and pump.has_history > 0 }}>
-                            <i class="bi bi-power-off"></i>
-                            خاموش
-                        </button>
+                        <span class="btn-action-wrap">
+                            <button 
+                                class="btn btn-success btn-action btn-sm {{ 'disabled' if pump.status and pump.has_history > 0 }}"
+                                data-pump-id="{{ pump.id }}" data-action="on"
+                                {{ 'disabled' if pump.status and pump.has_history > 0 }}>
+                                <i class="bi bi-power"></i>
+                                روشن
+                            </button>
+                        </span>
+                        <span class="btn-action-wrap">
+                            <button 
+                                class="btn btn-danger btn-action btn-sm {{ 'disabled' if not pump.status and pump.has_history > 0 }}"
+                                data-pump-id="{{ pump.id }}" data-action="off"
+                                {{ 'disabled' if not pump.status and pump.has_history > 0 }}>
+                                <i class="bi bi-power-off"></i>
+                                خاموش
+                            </button>
+                        </span>
                     </div>
                     {% else %}
                     <div class="alert alert-warning text-center py-2 mb-0">
@@ -164,6 +206,7 @@
                     </div>
                     {% endif %}
                 </div>
+
             </div>
         </div>
         {% endfor %}
@@ -277,11 +320,13 @@
 
 {% block scripts %}
 <script>
-    function changePumpStatus(pumpId, action) {
+    function changePumpStatus(e, pumpId, action) {
+        // جلوگیری از باز شدن لینکِ کارت زمانی که دکمه کلیک شده
+        try { e.stopPropagation(); } catch (err) {}
         console.log('Opening modal for pump:', pumpId, action);
-        
+
         // پیدا کردن اطلاعات پمپ
-        const pumpCard = event.target.closest('.pump-card');
+        const pumpCard = e.target.closest('.pump-card');
         const pumpNumber = pumpCard.querySelector('.card-header h6').textContent.replace('پمپ ', '');
         const pumpName = pumpCard.querySelector('.card-title').textContent;
         
@@ -378,5 +423,69 @@
             submitBtn.disabled = false;
         });
     }
+</script>
+<script>
+    // Attach reliable click handlers to action buttons so they stop propagation
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.btn-action').forEach(function(btn) {
+            // skip if already has an inline onclick (defensive)
+            // only attach to buttons with data-pump-id and data-action
+            const pumpId = btn.getAttribute('data-pump-id');
+            const action = btn.getAttribute('data-action');
+            if (!pumpId || !action) return;
+
+            btn.addEventListener('click', function(e) {
+                // If button is disabled, do nothing (and prevent the card link)
+                if (btn.disabled || btn.classList.contains('disabled')) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return;
+                }
+
+                e.stopPropagation();
+                // call existing handler
+                try {
+                    changePumpStatus(e, pumpId, action);
+                } catch (err) {
+                    console.error('Error calling changePumpStatus', err);
+                }
+            });
+        });
+        // Add capture-phase listeners on wrappers so clicks on disabled buttons
+        // don't fall through to the stretched-link anchor.
+        document.querySelectorAll('.btn-action-wrap').forEach(function(wrap) {
+            wrap.addEventListener('click', function(e) {
+                // run in capture phase to intercept before navigation.
+                // Allow the event to continue to the target if it's a real enabled button
+                // (so the button's click handler runs). Otherwise stop propagation so
+                // the card-level handler doesn't navigate.
+                const btn = e.target.closest('button');
+                if (btn) {
+                    const isAction = btn.classList.contains('btn-action');
+                    const isDisabled = btn.disabled || btn.classList.contains('disabled');
+                    if (isAction && !isDisabled) {
+                        // let it go to the button handler
+                        return;
+                    }
+                }
+
+                e.stopPropagation();
+            }, { capture: true });
+        });
+        // Attach click handler to the whole card to navigate to manage-records
+        document.querySelectorAll('.pump-card').forEach(function(card) {
+            card.addEventListener('click', function(e) {
+                // if the click originated from an interactive control, ignore
+                if (e.target.closest('.btn-action') || e.target.closest('.btn-action-wrap') || e.target.closest('a')) {
+                    return;
+                }
+
+                const pid = card.getAttribute('data-pump-id');
+                if (pid) {
+                    window.location.href = '/manage-records?pump_id=' + encodeURIComponent(pid);
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}

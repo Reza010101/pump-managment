@@ -365,6 +365,23 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    // اگر پارامتر pump_id در URL وجود داشته باشد، آن را انتخاب و رکوردها را بارگذاری کن
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const pumpIdParam = params.get('pump_id') || params.get('pumpId') || params.get('pump');
+        if (pumpIdParam) {
+            const pumpSelectEl = document.getElementById('pumpSelect');
+            if (pumpSelectEl) {
+                pumpSelectEl.value = pumpIdParam;
+                currentPumpId = pumpIdParam;
+                currentPage = 1;
+                loadPumpRecords(currentPumpId, currentPage);
+            }
+        }
+    } catch (e) {
+        console.error('خطا در خواندن پارامتر pump_id از URL', e);
+    }
 });
 </script>
 {% endblock %}
