@@ -1,0 +1,72 @@
+{% extends 'base_dashboard.html' %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>پیش‌نمایش فایل واردشده</h3>
+
+  <div class="card my-3">
+    <div class="card-body">
+      <p>خلاصه: {{ preview.summary.total_rows }} ردیف، {{ preview.summary.valid_rows }} معتبر، {{ preview.summary.error_count }} خطا</p>
+      {% if dry_run and (dry_run.insert is not none and dry_run.update is not none) %}
+        <div class="alert alert-info">
+          <strong>پیش‌بینی اعمال:</strong>
+          <span>در صورت Apply (dry-run): </span>
+          <span class="badge bg-success ms-2">Insert: {{ dry_run.insert }}</span>
+          <span class="badge bg-warning ms-2">Update: {{ dry_run.update }}</span>
+        </div>
+      {% elif dry_run %}
+        <div class="alert alert-secondary">پیش‌بینی اعمال در دسترس نیست (اتصال به DB ناموفق)</div>
+      {% endif %}
+      {% if preview.errors and preview.errors|length %}
+        <div class="alert alert-danger">
+          <strong>خطاها:</strong>
+          <ul>
+            {% for e in preview.errors %}
+              <li>ردیف {{ e.row }}: {{ e.msg }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <table class="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>well_number</th>
+            <th>well_name</th>
+            <th>well_location</th>
+            <th>total_depth</th>
+            <th>pump_number (auto)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in preview.rows_preview %}
+            <tr>
+              <td>{{ r.well_number }}</td>
+              <td>{{ r.well_name }}</td>
+              <td>{{ r.well_location }}</td>
+              <td>{{ r.total_depth }}</td>
+              <td>{{ r.pump_number }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <form method="post" action="/admin/setup/apply-upload">
+        <input type="hidden" name="upload_path" value="{{ upload_path }}">
+        <div class="mb-3">
+          <label class="form-label">Policy:</label>
+          <select name="policy" class="form-select">
+            <option value="merge" selected>Merge (پیش‌فرض)</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-success">اعمال داده‌ها</button>
+        <a href="/admin/setup" class="btn btn-secondary">لغو</a>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+{# no scripts needed for policy selection - overwrite option removed #}
+
+{% endblock %}

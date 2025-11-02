@@ -10,6 +10,7 @@ from blueprints.pumps import pumps_bp
 from blueprints.records_management import records_bp
 from blueprints.reports import reports_bp
 from blueprints.admin import admin_bp
+from blueprints.setup import setup_bp
 from blueprints.wells import wells_bp
 
 # Import utility functions
@@ -46,6 +47,7 @@ app.jinja_env.globals['from_json'] = from_json_filter
 
 # 4. Register all blueprint objects
 app.register_blueprint(admin_bp)
+app.register_blueprint(setup_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(pumps_bp)
