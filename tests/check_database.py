@@ -40,7 +40,7 @@ def check_database_schema():
         # --- 2. Check for required tables ---
         print("✅ CHECKING FOR REQUIRED TABLES")
         required_tables = [
-            'users', 'wells', 'pumps', 'maintenance_operations', 
+            'users', 'wells', 'pumps', 
             'wells_history', 'pump_history', 'deletion_logs'
         ]
         missing_tables = [tbl for tbl in required_tables if tbl not in tables]

@@ -184,6 +184,31 @@ def record_well_event(event_data):
             values.append(well_id)
             conn.execute(f'UPDATE wells SET {set_clause} WHERE id = ?', values)
 
+            # If location changed on the well, propagate it to the linked pump (if any)
+            # propagate location/name to linked pump (if any)
+            try:
+                pump_id = old_well['pump_id'] if old_well and 'pump_id' in old_well.keys() else None
+            except Exception:
+                pump_id = None
+
+            if pump_id:
+                # Update pump.location if well.location changed
+                if 'location' in updates_to_apply:
+                    new_location = updates_to_apply.get('location')
+                    try:
+                        conn.execute('UPDATE pumps SET location = ? WHERE id = ?', (new_location, pump_id))
+                    except Exception as e:
+                        # Non-fatal: don't block main op if pump update fails
+                        print(f"Warning: failed to update pump location for pump_id={pump_id}: {e}")
+
+                # Update pump.name if well.name changed
+                if 'name' in updates_to_apply:
+                    new_name = updates_to_apply.get('name')
+                    try:
+                        conn.execute('UPDATE pumps SET name = ? WHERE id = ?', (new_name, pump_id))
+                    except Exception as e:
+                        print(f"Warning: failed to update pump name for pump_id={pump_id}: {e}")
+
         # --- 3. Record the Event in wells_history ---
         new_well = conn.execute('SELECT * FROM wells WHERE id = ?', (well_id,)).fetchone()
         full_snapshot = json.dumps(dict(new_well), ensure_ascii=False) if new_well else '{}'
