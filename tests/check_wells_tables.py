@@ -7,8 +7,8 @@ def check_tables():
     try:
         print("🔍 بررسی جدول‌های ایجاد شده...")
         
-    # بررسی وجود جدول‌ها
-    tables = ['wells']
+        # بررسی وجود جدول‌ها
+        tables = ['wells']
         for table in tables:
             cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
             result = cursor.fetchone()
