@@ -17,7 +17,7 @@ def can_delete_record(record_id, user_id, user_role):
             SELECT ph.*, p.pump_number, u.username as original_username
             FROM pump_history ph
             JOIN pumps p ON ph.pump_id = p.id
-            JOIN users u ON ph.user_id = u.id
+            LEFT JOIN users u ON ph.user_id = u.id
             WHERE ph.id = ?
         ''', (record_id,)).fetchone()
         
@@ -67,7 +67,7 @@ def delete_pump_record(record_id, deletion_reason, deleted_by_user_id):
                    u2.full_name as deleted_by_name
             FROM pump_history ph
             JOIN pumps p ON ph.pump_id = p.id
-            JOIN users u ON ph.user_id = u.id
+            LEFT JOIN users u ON ph.user_id = u.id
             JOIN users u2 ON u2.id = ?
             WHERE ph.id = ?
         ''', (deleted_by_user_id, record_id)).fetchone()
@@ -123,7 +123,7 @@ def get_pump_records_with_pagination(pump_id, page=1, per_page=20):
                    u.username, u.full_name
             FROM pump_history ph
             JOIN pumps p ON ph.pump_id = p.id
-            JOIN users u ON ph.user_id = u.id
+            LEFT JOIN users u ON ph.user_id = u.id
             WHERE p.id = ?
             ORDER BY ph.event_time DESC, ph.id DESC
             LIMIT ? OFFSET ?
@@ -179,14 +179,19 @@ def get_pump_records(pump_id):
         # تبدیل رکوردها به فرمت قابل نمایش
         records_data = []
         for record in result['records']:
+            # اگر کاربر ثبت‌کننده حذف شده باشد، مقادیر مربوطه می‌تواند None باشد؛
+            # در این صورت مقدار پیش‌فرض خوانا نمایش می‌دهیم.
+            user_full_name = record['full_name'] if record['full_name'] else 'کاربر حذف‌شده'
+            user_username = record['username'] if record['username'] else ''
+
             records_data.append({
                 'id': record['id'],
                 'event_time': record['event_time'],
                 'action': record['action'],
                 'reason': record['reason'],
                 'notes': record['notes'] or '',
-                'user_full_name': record['full_name'],
-                'user_username': record['username'],
+                'user_full_name': user_full_name,
+                'user_username': user_username,
                 'pump_number': record['pump_number'],
                 'pump_name': record['pump_name'],
                 'recorded_time': record['recorded_time']
