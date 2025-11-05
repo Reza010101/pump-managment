@@ -243,9 +243,9 @@ def deletion_logs():
         
         # دریافت لاگ‌ها با صفحه‌بندی
         logs = conn.execute('''
-            SELECT dl.*, u1.username as deleted_by_username
+            SELECT dl.*, COALESCE(u1.username, dl.deleted_by_user_name, '') as deleted_by_user_name
             FROM deletion_logs dl
-            JOIN users u1 ON dl.deleted_by_user_id = u1.id
+            LEFT JOIN users u1 ON dl.deleted_by_user_id = u1.id
             ORDER BY dl.deleted_at DESC
             LIMIT ? OFFSET ?
         ''', (per_page, offset)).fetchall()
