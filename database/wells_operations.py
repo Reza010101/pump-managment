@@ -278,9 +278,9 @@ def get_well_maintenance_operations(well_id, limit=50):
         operations = conn.execute('''
             SELECT 
                 wh.*,
-                u.full_name as changed_by_user_name
+                COALESCE(u.full_name, '') as changed_by_user_name
             FROM wells_history wh
-            JOIN users u ON wh.changed_by_user_id = u.id
+            LEFT JOIN users u ON wh.changed_by_user_id = u.id
             WHERE wh.well_id = ?
             ORDER BY wh.operation_date DESC, wh.id DESC
             LIMIT ?
@@ -304,11 +304,11 @@ def get_all_maintenance_operations(limit=100):
         operations = conn.execute('''
             SELECT 
                 wh.*,
-                u.full_name as changed_by_user_name,
+                COALESCE(u.full_name, '') as changed_by_user_name,
                 w.well_number,
                 w.name as well_name
             FROM wells_history wh
-            JOIN users u ON wh.changed_by_user_id = u.id
+            LEFT JOIN users u ON wh.changed_by_user_id = u.id
             JOIN wells w ON wh.well_id = w.id
             ORDER BY wh.operation_date DESC, wh.id DESC
             LIMIT ?
