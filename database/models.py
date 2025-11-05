@@ -31,13 +31,16 @@ def get_all_pumps():
 
 def get_user_by_credentials(username, password):
     """احراز هویت کاربر"""
+    # Backwards-compatible helper: check hashed password
+    from werkzeug.security import check_password_hash
+
     conn = get_db_connection()
-    user = conn.execute(
-        'SELECT * FROM users WHERE username = ? AND password = ?', 
-        (username, password)
-    ).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
     conn.close()
-    return user
+
+    if user and check_password_hash(user['password'], password):
+        return user
+    return None
 
 def get_user_by_id(user_id):
     """دریافت اطلاعات کاربر بر اساس ID"""

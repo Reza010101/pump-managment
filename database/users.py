@@ -1,4 +1,5 @@
 from .models import get_db_connection
+from werkzeug.security import generate_password_hash, check_password_hash
 
 def get_all_users():
     """دریافت لیست تمام کاربران"""
@@ -10,12 +11,13 @@ def get_all_users():
 def get_user_by_credentials(username, password):
     """احراز هویت کاربر"""
     conn = get_db_connection()
-    user = conn.execute(
-        'SELECT * FROM users WHERE username = ? AND password = ?', 
-        (username, password)
-    ).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
     conn.close()
-    return user
+
+    # اگر کاربر یافت شد، پسورد هش‌شده را بررسی کن
+    if user and check_password_hash(user['password'], password):
+        return user
+    return None
 
 def create_new_user(username, password, full_name, role):
     """ایجاد کاربر جدید"""
@@ -29,9 +31,11 @@ def create_new_user(username, password, full_name, role):
         if existing_user:
             return {'success': False, 'error': 'نام کاربری قبلاً استفاده شده است!'}
         
+        # هش کردن پسورد قبل از ذخیره
+        hashed = generate_password_hash(password)
         conn.execute(
             'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
-            (username, password, full_name, role)
+            (username, hashed, full_name, role)
         )
         conn.commit()
         conn.close()
@@ -62,17 +66,15 @@ def change_user_password(user_id, current_password, new_password):
     conn = get_db_connection()
     
     try:
-        user = conn.execute(
-            'SELECT * FROM users WHERE id = ? AND password = ?',
-            (user_id, current_password)
-        ).fetchone()
-        
-        if not user:
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+
+        if not user or not check_password_hash(user['password'], current_password):
             return {'success': False, 'error': 'پسورد فعلی اشتباه است!'}
-        
+
+        new_hashed = generate_password_hash(new_password)
         conn.execute(
             'UPDATE users SET password = ?, last_password_change = CURRENT_TIMESTAMP WHERE id = ?',
-            (new_password, user_id)
+            (new_hashed, user_id)
         )
         conn.commit()
         conn.close()

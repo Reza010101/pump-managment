@@ -134,11 +134,14 @@ def insert_sample_data(cursor):
         ('admin', '1234', 'مدیر سیستم', 'admin'),
         ('user1', '1234', 'کاربر نمونه', 'user')
     ]
-    for u in users:
+    # هش کردن پسوردهای پیشفرض هنگام درج
+    from werkzeug.security import generate_password_hash
+    for username, pw, full_name, role in users:
+        hashed = generate_password_hash(pw)
         cursor.execute('''
             INSERT OR IGNORE INTO users (username, password, full_name, role) 
             VALUES (?, ?, ?, ?)
-        ''', u)
+        ''', (username, hashed, full_name, role))
     print("✅ کاربران پیشفرض اضافه شدند")
     # NOTE: Previously this script auto-inserted 58 sample pumps for development.
     # Per project decision, we no longer auto-seed pumps here. Use the
