@@ -149,10 +149,10 @@ def get_full_history_report(from_date_jalali, to_date_jalali, pump_id):
     if pump_id == 'all':
         query = '''
             SELECT p.pump_number, p.name, ph.action, ph.event_time, 
-                   ph.reason, ph.notes, u.full_name as user_name
+                   ph.reason, ph.notes, COALESCE(u.full_name, 'کاربر حذف‌شده') as user_name
             FROM pump_history ph
             JOIN pumps p ON ph.pump_id = p.id
-            JOIN users u ON ph.user_id = u.id
+            LEFT JOIN users u ON ph.user_id = u.id
             WHERE ph.event_time BETWEEN ? AND ?
             ORDER BY ph.event_time DESC
         '''
@@ -160,10 +160,10 @@ def get_full_history_report(from_date_jalali, to_date_jalali, pump_id):
     else:
         query = '''
             SELECT p.pump_number, p.name, ph.action, ph.event_time, 
-                   ph.reason, ph.notes, u.full_name as user_name
+                   ph.reason, ph.notes, COALESCE(u.full_name, 'کاربر حذف‌شده') as user_name
             FROM pump_history ph
             JOIN pumps p ON ph.pump_id = p.id
-            JOIN users u ON ph.user_id = u.id
+            LEFT JOIN users u ON ph.user_id = u.id
             WHERE p.pump_number = ? AND ph.event_time BETWEEN ? AND ?
             ORDER BY ph.event_time DESC
         '''
