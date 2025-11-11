@@ -1,7 +1,7 @@
-from flask import Flask, session, redirect
+from flask import Flask, session, redirect, flash, request
 import os
 import json
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 # Import the blueprint OBJECTS from their respective files (use the actual variable names)
 from blueprints.auth import auth_bp
@@ -21,7 +21,43 @@ app = Flask(__name__)
 
 # 2. Configure the app
 app.secret_key = os.urandom(24)
-app.permanent_session_lifetime = timedelta(days=1)
+# Set inactivity timeout to 1 hour (sliding window)
+app.permanent_session_lifetime = timedelta(hours=1)
+
+
+@app.before_request
+def _check_session_timeout():
+    """Enforce inactivity timeout: if user is logged in and last activity
+    was more than permanent_session_lifetime seconds ago, clear session and
+    force re-login. Otherwise update last_activity (sliding expiration).
+    """
+    try:
+        # Only enforce for authenticated sessions
+        if 'user_id' in session:
+            # ensure Flask treats this as a permanent session
+            session.permanent = True
+
+            now = datetime.utcnow().timestamp()
+            last = session.get('last_activity')
+            lifetime = app.permanent_session_lifetime.total_seconds()
+
+            if last is not None:
+                try:
+                    elapsed = now - float(last)
+                except Exception:
+                    elapsed = 0
+
+                if elapsed > lifetime:
+                    # expire session
+                    session.clear()
+                    flash('نشست شما منقضی شد؛ لطفاً دوباره وارد شوید.', 'error')
+                    return redirect('/login')
+
+            # update sliding last_activity
+            session['last_activity'] = now
+    except Exception:
+        # be conservative: don't break requests on unexpected errors here
+        pass
 
 # 3. Define template filters AFTER the app is created
 @app.template_filter('jalali')

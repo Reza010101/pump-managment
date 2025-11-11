@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, session, redirect, flash
 from database.users import get_user_by_credentials
 from database.operations import update_pump_current_status
+from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -20,6 +21,10 @@ def login():
             session['username'] = user['username']
             session['full_name'] = user['full_name']
             session['role'] = user['role']
+            # Use permanent sessions so Flask can apply permanent_session_lifetime
+            session.permanent = True
+            # Track last activity timestamp (UTC) for inactivity timeout
+            session['last_activity'] = datetime.utcnow().timestamp()
             update_pump_current_status()
             flash('با موفقیت وارد شدید!', 'success')
             return redirect('/')
